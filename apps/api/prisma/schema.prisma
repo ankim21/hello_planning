@@ -1,0 +1,376 @@
+// Data model for brick 1. See docs/architecture.md, section 5.
+// All timestamps are stored in UTC; each site carries its timezone.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ───────────── Organisation ─────────────
+
+model LegalEntity {
+  id        String     @id @default(uuid())
+  name      String     @unique
+  sites     Site[]
+  contracts Contract[]
+}
+
+enum SiteType {
+  RESTAURANT
+  LAB
+  OFFICE
+}
+
+model Site {
+  id            String           @id @default(uuid())
+  name          String           @unique
+  type          SiteType
+  timezone      String           @default("Europe/Paris")
+  legalEntityId String
+  legalEntity   LegalEntity      @relation(fields: [legalEntityId], references: [id])
+  assignments   SiteAssignment[]
+  roleGrants    RoleGrant[]
+  devices       Device[]
+  shifts        Shift[]
+  clockEvents   ClockEvent[]
+  dayLocks      DayLock[]
+  timeEntries   TimeEntry[]
+  leaveRequests LeaveRequest[]
+}
+
+enum Department {
+  KITCHEN
+  SALLE
+}
+
+// A post is a station (Pass, Runner…). It is stored once; AM / PM is chosen on
+// the shift, so every post automatically exists for both services.
+model Post {
+  id         String         @id @default(uuid())
+  name       String         @unique
+  department Department
+  color      String         @default("#9ca3af") // card colour on the planning
+  isActive   Boolean        @default(true)
+  employees  EmployeePost[]
+  shifts     Shift[]
+}
+
+// ───────────── People ─────────────
+// Only what planning and the time clock need. Salary and HR documents arrive
+// with the HR brick.
+
+model Employee {
+  id          String           @id @default(uuid())
+  payfitId    String?          @unique // filled once the PayFit sync exists
+  firstName   String
+  lastName    String
+  pinHash     String? // PIN for the tablet, never stored in clear
+  isActive    Boolean          @default(true)
+  user        User?
+  contracts   Contract[]
+  assignments SiteAssignment[]
+  posts       EmployeePost[]
+  shifts      Shift[]
+  clockEvents ClockEvent[]
+  absences    Absence[]
+  timeEntries TimeEntry[]
+  leaveRequests LeaveRequest[]
+}
+
+enum ContractType {
+  CDI
+  CDD
+  EXTRA
+  APPRENTICE
+}
+
+model Contract {
+  id            String       @id @default(uuid())
+  employeeId    String
+  employee      Employee     @relation(fields: [employeeId], references: [id])
+  legalEntityId String
+  legalEntity   LegalEntity  @relation(fields: [legalEntityId], references: [id])
+  type          ContractType
+  weeklyHours   Decimal?     @db.Decimal(5, 2) // 39, 35, 25… null for forfait jours
+  forfaitJours  Boolean      @default(false) // forfait jours staff do not clock
+  startDate     DateTime     @db.Date
+  endDate       DateTime?    @db.Date
+}
+
+model SiteAssignment {
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id])
+  siteId     String
+  site       Site     @relation(fields: [siteId], references: [id])
+  isPrimary  Boolean  @default(false)
+
+  @@id([employeeId, siteId])
+}
+
+model EmployeePost {
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id])
+  postId     String
+  post       Post     @relation(fields: [postId], references: [id])
+
+  @@id([employeeId, postId])
+}
+
+// ───────────── Accounts and rights ─────────────
+
+model User {
+  id           String      @id @default(uuid())
+  email        String      @unique
+  passwordHash String
+  isActive     Boolean     @default(true)
+  employeeId   String?     @unique
+  employee     Employee?   @relation(fields: [employeeId], references: [id])
+  roleGrants   RoleGrant[]
+  createdAt    DateTime    @default(now())
+}
+
+enum Role {
+  HEAD_CHEF
+  MANAGER
+  SITE_DIRECTOR
+  MULTI_SITE_MANAGER
+  HR
+  OPS // office operations team: sees every site, changes nothing
+  ADMIN
+}
+
+// "This user has this role on this site." A null site means all sites.
+// Every user linked to an employee is also an employee, without a grant.
+model RoleGrant {
+  id     String  @id @default(uuid())
+  userId String
+  user   User    @relation(fields: [userId], references: [id])
+  role   Role
+  siteId String?
+  site   Site?   @relation(fields: [siteId], references: [id])
+
+  @@unique([userId, role, siteId])
+}
+
+// A tablet registered for one site. Only the hash of its token is stored.
+model Device {
+  id          String       @id @default(uuid())
+  name        String
+  siteId      String
+  site        Site         @relation(fields: [siteId], references: [id])
+  tokenHash   String       @unique
+  createdAt   DateTime     @default(now())
+  revokedAt   DateTime?
+  clockEvents ClockEvent[]
+}
+
+// ───────────── Planning ─────────────
+
+enum Service {
+  AM
+  PM
+}
+
+model Shift {
+  id          String   @id @default(uuid())
+  siteId      String
+  site        Site     @relation(fields: [siteId], references: [id])
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id])
+  postId      String
+  post        Post     @relation(fields: [postId], references: [id])
+  service     Service
+  startsAt    DateTime
+  endsAt      DateTime
+  breakMinutes Int     @default(20)
+  meals       Int      @default(1) // meals taken during the shift
+  note        String?
+  createdById String
+  createdAt   DateTime @default(now())
+
+  @@index([siteId, startsAt])
+  @@index([employeeId, startsAt])
+}
+
+// The lock shown next to each day of the planning. No row = open (grey).
+enum DayLockStatus {
+  LOCKED // blue: the day can no longer be edited
+  PAYROLL // red: the day is being counted for payslips
+}
+
+model DayLock {
+  siteId  String
+  site    Site          @relation(fields: [siteId], references: [id])
+  date    DateTime      @db.Date
+  status  DayLockStatus
+  setById String
+  setAt   DateTime      @default(now())
+
+  @@id([siteId, date])
+}
+
+// ───────────── Absences ─────────────
+
+enum AbsenceCategory {
+  EMPLOYER_PAID
+  THIRD_PARTY_PAID
+  UNPAID
+  NEUTRAL
+}
+
+// The catalogue transcribed from Skello: docs/reference/absence-types.md.
+model AbsenceType {
+  id                    String          @id @default(uuid())
+  name                  String          @unique
+  category              AbsenceCategory
+  isActive              Boolean
+  earnsLeave            Boolean
+  compensatoryIndemnity Boolean
+  employeeCanRequest    Boolean
+  overtimeMajorees      Boolean? // null for categories without this setting
+  blocksPlanning        Boolean         @default(false) // true for arrêt maladie
+  absences              Absence[]
+  leaveRequests         LeaveRequest[]
+}
+
+enum DayPart {
+  FULL_DAY
+  HALF_DAY
+  CUSTOM // startTime and endTime are filled
+}
+
+// An absence covers whole dates, from startDate to endDate included.
+model Absence {
+  id            String      @id @default(uuid())
+  employeeId    String
+  employee      Employee    @relation(fields: [employeeId], references: [id])
+  absenceTypeId String
+  type          AbsenceType @relation(fields: [absenceTypeId], references: [id])
+  startDate     DateTime    @db.Date
+  endDate       DateTime    @db.Date
+  dayPart       DayPart     @default(FULL_DAY)
+  startTime     String? // "HH:MM", only for CUSTOM
+  endTime       String?
+  note          String?
+  createdById   String
+  createdAt     DateTime    @default(now())
+
+  @@index([employeeId, startDate])
+}
+
+// ───────────── Leave requests ─────────────
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REFUSED
+  CANCELLED // withdrawn by the employee before a decision
+}
+
+// Who takes the final decision. Worked out when the request is made
+// (src/leave/leave.rules.ts) and stored, so it can always be explained.
+enum LeaveRoute {
+  DIRECTOR // the site director
+  MULTI_SITE // the multi-site manager, for a site director's own request
+  HR // office and lab staff
+}
+
+model LeaveRequest {
+  id             String      @id @default(uuid())
+  employeeId     String
+  employee       Employee    @relation(fields: [employeeId], references: [id])
+  siteId         String // the employee's main site when the request was made
+  site           Site        @relation(fields: [siteId], references: [id])
+  absenceTypeId  String
+  type           AbsenceType @relation(fields: [absenceTypeId], references: [id])
+  startDate      DateTime    @db.Date
+  endDate        DateTime    @db.Date
+  dayPart        DayPart     @default(FULL_DAY)
+  startTime      String?
+  endTime        String?
+  note           String?
+  route          LeaveRoute
+  status         LeaveStatus @default(PENDING)
+  decidedById    String?
+  decidedAt      DateTime?
+  decisionNote   String?
+  absenceId      String?     @unique // the absence created on approval
+  createdAt      DateTime    @default(now())
+
+  @@index([siteId, status])
+  @@index([employeeId, startDate])
+}
+
+// ───────────── Time clock ─────────────
+
+enum ClockKind {
+  IN
+  OUT
+  BREAK_START
+  BREAK_END
+}
+
+// Raw clockings. Append-only: a database trigger refuses any update or delete
+// (see the first migration). Corrections will be separate records.
+// The id is generated by the tablet, so an event sent twice is stored once.
+model ClockEvent {
+  id         String    @id
+  employeeId String
+  employee   Employee  @relation(fields: [employeeId], references: [id])
+  siteId     String
+  site       Site      @relation(fields: [siteId], references: [id])
+  deviceId   String
+  device     Device    @relation(fields: [deviceId], references: [id])
+  kind       ClockKind
+  occurredAt DateTime // time on the tablet when the employee clocked
+  receivedAt DateTime  @default(now()) // time the server got it
+
+  @@index([employeeId, occurredAt])
+  @@index([siteId, occurredAt])
+}
+
+// What the manager validated for one stretch of work: the hours that will go
+// to payroll. Created when a clocking is validated or corrected, or when hours
+// are added by hand for someone who did not clock. The raw ClockEvents are
+// never touched; every change here is also written to the audit log.
+model TimeEntry {
+  id            String    @id @default(uuid())
+  siteId        String
+  site          Site      @relation(fields: [siteId], references: [id])
+  employeeId    String
+  employee      Employee  @relation(fields: [employeeId], references: [id])
+  shiftId       String? // the planned shift it was compared with, if any
+  clockInAt     DateTime? // the clock-in it validates; null = added by hand
+  date          DateTime  @db.Date // day at the site
+  startsAt      DateTime
+  endsAt        DateTime
+  breakMinutes  Int
+  workedMinutes Int
+  meals         Int       @default(0)
+  corrected     Boolean   @default(false) // true when the manager changed the computed hours
+  reason        String?
+  validatedById String
+  validatedAt   DateTime  @default(now())
+
+  @@unique([employeeId, clockInAt])
+  @@index([siteId, date])
+}
+
+// ───────────── Audit ─────────────
+
+model AuditLog {
+  id            String   @id @default(uuid())
+  at            DateTime @default(now())
+  actorUserId   String?
+  actorDeviceId String?
+  action        String // e.g. "shift.create"
+  entity        String
+  entityId      String
+  data          Json?
+
+  @@index([entity, entityId])
+}

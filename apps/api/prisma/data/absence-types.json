@@ -1,0 +1,662 @@
+[
+ {
+  "name": "Absence autorisée rémunérée",
+  "category": "EMPLOYER_PAID",
+  "isActive": false,
+  "earnsLeave": false,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": false,
+  "overtimeMajorees": false,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Absence pour examens médicaux",
+  "category": "EMPLOYER_PAID",
+  "isActive": false,
+  "earnsLeave": true,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": true,
+  "overtimeMajorees": false,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Chômage technique",
+  "category": "EMPLOYER_PAID",
+  "isActive": false,
+  "earnsLeave": true,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": false,
+  "overtimeMajorees": false,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Congé d'ancienneté",
+  "category": "EMPLOYER_PAID",
+  "isActive": false,
+  "earnsLeave": true,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": true,
+  "overtimeMajorees": false,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Congé de deuil",
+  "category": "EMPLOYER_PAID",
+  "isActive": false,
+  "earnsLeave": true,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": true,
+  "overtimeMajorees": false,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Congé de fractionnement",
+  "category": "EMPLOYER_PAID",
+  "isActive": false,
+  "earnsLeave": false,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": true,
+  "overtimeMajorees": true,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Congé décès d'un beau-père ou d'une belle-mère",
+  "category": "EMPLOYER_PAID",
+  "isActive": false,
+  "earnsLeave": true,
+  "compensatoryIndemnity": true,
+  "employeeCanRequest": true,
+  "overtimeMajorees": true,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Congé décès d'un descendant en ligne direct",
+  "category": "EMPLOYER_PAID",
+  "isActive": false,
+  "earnsLeave": true,
+  "compensatoryIndemnity": true,
+  "employeeCanRequest": true,
+  "overtimeMajorees": true,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Congé décès d'un père ou d'une mère",
+  "category": "EMPLOYER_PAID",
+  "isActive": false,
+  "earnsLeave": true,
+  "compensatoryIndemnity": true,
+  "employeeCanRequest": true,
+  "overtimeMajorees": true,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Congé décès enfant",
+  "category": "EMPLOYER_PAID",
+  "isActive": false,
+  "earnsLeave": true,
+  "compensatoryIndemnity": true,
+  "employeeCanRequest": true,
+  "overtimeMajorees": true,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Congé décès enfant <25 ans",
+  "category": "EMPLOYER_PAID",
+  "isActive": false,
+  "earnsLeave": true,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": true,
+  "overtimeMajorees": true,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Congé événementiel",
+  "category": "EMPLOYER_PAID",
+  "isActive": true,
+  "earnsLeave": true,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": true,
+  "overtimeMajorees": true,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Congé individuel formation",
+  "category": "EMPLOYER_PAID",
+  "isActive": false,
+  "earnsLeave": false,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": false,
+  "overtimeMajorees": true,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Congé mariage / PACS",
+  "category": "EMPLOYER_PAID",
+  "isActive": true,
+  "earnsLeave": true,
+  "compensatoryIndemnity": true,
+  "employeeCanRequest": true,
+  "overtimeMajorees": true,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Congé naissance",
+  "category": "EMPLOYER_PAID",
+  "isActive": true,
+  "earnsLeave": true,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": true,
+  "overtimeMajorees": false,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Congé payé",
+  "category": "EMPLOYER_PAID",
+  "isActive": true,
+  "earnsLeave": true,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": true,
+  "overtimeMajorees": true,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Congé temps d'habillage",
+  "category": "EMPLOYER_PAID",
+  "isActive": false,
+  "earnsLeave": false,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": true,
+  "overtimeMajorees": false,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Congé trimestriel",
+  "category": "EMPLOYER_PAID",
+  "isActive": false,
+  "earnsLeave": true,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": true,
+  "overtimeMajorees": false,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Délégation du personnel",
+  "category": "EMPLOYER_PAID",
+  "isActive": false,
+  "earnsLeave": true,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": false,
+  "overtimeMajorees": true,
+  "blocksPlanning": false
+ },
+ {
+  "name": "École - CFA",
+  "category": "EMPLOYER_PAID",
+  "isActive": true,
+  "earnsLeave": true,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": false,
+  "overtimeMajorees": true,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Formation",
+  "category": "EMPLOYER_PAID",
+  "isActive": false,
+  "earnsLeave": true,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": true,
+  "overtimeMajorees": true,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Heures d'activité partielle",
+  "category": "EMPLOYER_PAID",
+  "isActive": false,
+  "earnsLeave": true,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": false,
+  "overtimeMajorees": false,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Indemnité compensatrice de préavis",
+  "category": "EMPLOYER_PAID",
+  "isActive": false,
+  "earnsLeave": false,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": false,
+  "overtimeMajorees": false,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Jour Férié",
+  "category": "EMPLOYER_PAID",
+  "isActive": true,
+  "earnsLeave": true,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": false,
+  "overtimeMajorees": false,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Journée de défense citoyenneté",
+  "category": "EMPLOYER_PAID",
+  "isActive": false,
+  "earnsLeave": false,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": true,
+  "overtimeMajorees": false,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Récupération JF",
+  "category": "EMPLOYER_PAID",
+  "isActive": true,
+  "earnsLeave": true,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": false,
+  "overtimeMajorees": false,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Repos compensateur",
+  "category": "EMPLOYER_PAID",
+  "isActive": false,
+  "earnsLeave": true,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": true,
+  "overtimeMajorees": false,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Repos compensateur de nuit",
+  "category": "EMPLOYER_PAID",
+  "isActive": false,
+  "earnsLeave": true,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": true,
+  "overtimeMajorees": false,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Repos forfait",
+  "category": "EMPLOYER_PAID",
+  "isActive": false,
+  "earnsLeave": true,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": true,
+  "overtimeMajorees": false,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Réunion",
+  "category": "EMPLOYER_PAID",
+  "isActive": false,
+  "earnsLeave": false,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": false,
+  "overtimeMajorees": false,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Réunions CSE/CSSCT",
+  "category": "EMPLOYER_PAID",
+  "isActive": false,
+  "earnsLeave": true,
+  "compensatoryIndemnity": true,
+  "employeeCanRequest": true,
+  "overtimeMajorees": true,
+  "blocksPlanning": false
+ },
+ {
+  "name": "RTT",
+  "category": "EMPLOYER_PAID",
+  "isActive": true,
+  "earnsLeave": true,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": true,
+  "overtimeMajorees": false,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Service militaire",
+  "category": "EMPLOYER_PAID",
+  "isActive": false,
+  "earnsLeave": false,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": false,
+  "overtimeMajorees": false,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Solde de tout compte",
+  "category": "EMPLOYER_PAID",
+  "isActive": true,
+  "earnsLeave": false,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": false,
+  "overtimeMajorees": false,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Télétravail",
+  "category": "EMPLOYER_PAID",
+  "isActive": false,
+  "earnsLeave": true,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": true,
+  "overtimeMajorees": true,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Accident de trajet",
+  "category": "THIRD_PARTY_PAID",
+  "isActive": true,
+  "earnsLeave": true,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": false,
+  "overtimeMajorees": false,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Accident du travail",
+  "category": "THIRD_PARTY_PAID",
+  "isActive": true,
+  "earnsLeave": true,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": false,
+  "overtimeMajorees": false,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Arrêt maladie",
+  "category": "THIRD_PARTY_PAID",
+  "isActive": true,
+  "earnsLeave": true,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": false,
+  "overtimeMajorees": false,
+  "blocksPlanning": true
+ },
+ {
+  "name": "Arrêt maladie prolongé",
+  "category": "THIRD_PARTY_PAID",
+  "isActive": false,
+  "earnsLeave": true,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": true,
+  "overtimeMajorees": false,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Congé adoption",
+  "category": "THIRD_PARTY_PAID",
+  "isActive": false,
+  "earnsLeave": true,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": true,
+  "overtimeMajorees": false,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Congé de présence parentale",
+  "category": "THIRD_PARTY_PAID",
+  "isActive": false,
+  "earnsLeave": false,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": true,
+  "overtimeMajorees": false,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Congé hospitalisation enfant",
+  "category": "THIRD_PARTY_PAID",
+  "isActive": false,
+  "earnsLeave": false,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": true,
+  "overtimeMajorees": false,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Congé maternité",
+  "category": "THIRD_PARTY_PAID",
+  "isActive": true,
+  "earnsLeave": true,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": true,
+  "overtimeMajorees": false,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Congé paternité",
+  "category": "THIRD_PARTY_PAID",
+  "isActive": true,
+  "earnsLeave": true,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": true,
+  "overtimeMajorees": false,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Congé proche aidant",
+  "category": "THIRD_PARTY_PAID",
+  "isActive": false,
+  "earnsLeave": false,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": true,
+  "overtimeMajorees": false,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Congé supplémentaire de naissance",
+  "category": "THIRD_PARTY_PAID",
+  "isActive": true,
+  "earnsLeave": false,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": true,
+  "overtimeMajorees": false,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Invalidité permanente",
+  "category": "THIRD_PARTY_PAID",
+  "isActive": false,
+  "earnsLeave": false,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": false,
+  "overtimeMajorees": false,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Maladie professionnelle",
+  "category": "THIRD_PARTY_PAID",
+  "isActive": false,
+  "earnsLeave": true,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": true,
+  "overtimeMajorees": false,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Temps partiel thérapeutique",
+  "category": "THIRD_PARTY_PAID",
+  "isActive": false,
+  "earnsLeave": false,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": false,
+  "overtimeMajorees": false,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Absence autorisée",
+  "category": "UNPAID",
+  "isActive": true,
+  "earnsLeave": false,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": false,
+  "overtimeMajorees": null,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Absence entrée sortie",
+  "category": "UNPAID",
+  "isActive": true,
+  "earnsLeave": false,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": false,
+  "overtimeMajorees": null,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Absence injustifiée",
+  "category": "UNPAID",
+  "isActive": true,
+  "earnsLeave": false,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": false,
+  "overtimeMajorees": null,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Congé décès d'un grand-parent",
+  "category": "UNPAID",
+  "isActive": false,
+  "earnsLeave": false,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": true,
+  "overtimeMajorees": null,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Congé parental",
+  "category": "UNPAID",
+  "isActive": false,
+  "earnsLeave": false,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": true,
+  "overtimeMajorees": null,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Congé pour enfant malade",
+  "category": "UNPAID",
+  "isActive": false,
+  "earnsLeave": false,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": true,
+  "overtimeMajorees": null,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Congé pour garde d'enfant",
+  "category": "UNPAID",
+  "isActive": false,
+  "earnsLeave": false,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": true,
+  "overtimeMajorees": null,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Congé sans solde",
+  "category": "UNPAID",
+  "isActive": true,
+  "earnsLeave": false,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": true,
+  "overtimeMajorees": null,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Départ anticipé",
+  "category": "UNPAID",
+  "isActive": false,
+  "earnsLeave": false,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": false,
+  "overtimeMajorees": null,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Grève",
+  "category": "UNPAID",
+  "isActive": false,
+  "earnsLeave": false,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": false,
+  "overtimeMajorees": null,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Mise à pied conservatoire",
+  "category": "UNPAID",
+  "isActive": false,
+  "earnsLeave": false,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": false,
+  "overtimeMajorees": null,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Mise à pied disciplinaire",
+  "category": "UNPAID",
+  "isActive": false,
+  "earnsLeave": false,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": false,
+  "overtimeMajorees": null,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Récupération",
+  "category": "UNPAID",
+  "isActive": true,
+  "earnsLeave": true,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": true,
+  "overtimeMajorees": null,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Suspension de contrat",
+  "category": "UNPAID",
+  "isActive": false,
+  "earnsLeave": false,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": false,
+  "overtimeMajorees": null,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Astreinte",
+  "category": "NEUTRAL",
+  "isActive": false,
+  "earnsLeave": false,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": false,
+  "overtimeMajorees": null,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Pause",
+  "category": "NEUTRAL",
+  "isActive": false,
+  "earnsLeave": false,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": false,
+  "overtimeMajorees": null,
+  "blocksPlanning": false
+ },
+ {
+  "name": "Repos hebdomadaire",
+  "category": "NEUTRAL",
+  "isActive": true,
+  "earnsLeave": false,
+  "compensatoryIndemnity": false,
+  "employeeCanRequest": false,
+  "overtimeMajorees": null,
+  "blocksPlanning": false
+ }
+]

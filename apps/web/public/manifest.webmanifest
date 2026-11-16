@@ -1,0 +1,9 @@
+{
+  "name": "PLANetBAO",
+  "short_name": "PLANetBAO",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0b1026",
+  "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}

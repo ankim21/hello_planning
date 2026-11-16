@@ -1,0 +1,16 @@
+{
+  "name": "skellobis",
+  "private": true,
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "db:up": "docker compose up -d db",
+    "db:migrate": "npm run migrate -w api",
+    "db:seed": "npm run seed -w api",
+    "db:seed:demo": "npm run seed:demo -w api",
+    "build:rules": "npm run build -w @skellobis/labor-rules",
+    "dev:api": "npm run build:rules && npm run start:dev -w api",
+    "dev:web": "npm run dev -w web",
+    "test": "npm test -w @skellobis/labor-rules && npm test -w api",
+    "build": "npm run build:rules && npm run build -w api && npm run build -w web"
+  }
+}

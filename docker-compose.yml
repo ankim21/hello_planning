@@ -1,0 +1,16 @@
+# Local development database. Port 5433 so it does not clash with a
+# PostgreSQL already installed on the machine (which uses 5432).
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: skellobis
+      POSTGRES_PASSWORD: skellobis
+      POSTGRES_DB: skellobis
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+volumes:
+  db-data:

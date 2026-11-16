@@ -1,0 +1,18 @@
+import { createParamDecorator, type ExecutionContext } from '@nestjs/common';
+import type { Grant } from './permissions.js';
+
+export const SESSION_COOKIE = 'session';
+
+/** The logged-in person, attached to the request by SessionGuard. */
+export interface SessionUser {
+  id: string;
+  email: string;
+  employeeId: string | null;
+  grants: Grant[];
+}
+
+/** Use as a controller parameter: `@CurrentUser() user: SessionUser`. */
+export const CurrentUser = createParamDecorator(
+  (_data: unknown, context: ExecutionContext): SessionUser =>
+    context.switchToHttp().getRequest().user,
+);
