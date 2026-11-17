@@ -112,12 +112,15 @@ export function Shell({ siteId, section = 'planning', children }: Props) {
           {me.grants.some((grant) => grant.role === 'ADMIN' && grant.siteId === null) && (
             <NavLink to="/comptes">Comptes</NavLink>
           )}
+        </nav>
+
+        {/* On the right: notifications, and the way to the personal side. */}
+        <span className="topbar-right">
           <Bell />
-          {/* The personal side: my week, my restaurants, my leave, my profile. */}
           <NavLink to="/moi" className="space-switch">
             Mon espace
           </NavLink>
-        </nav>
+        </span>
       </header>
       {children({ me, sites })}
     </>

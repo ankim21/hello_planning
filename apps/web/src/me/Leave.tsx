@@ -5,7 +5,7 @@
 import { type FormEvent, useCallback, useEffect, useState } from 'react'
 import { Navigate } from 'react-router'
 import { api, type LeaveRequest } from '../api.ts'
-import { TIME, TimeField } from '../pages/CardEditor.tsx'
+import { TIME, TimePicker } from '../pages/CardEditor.tsx'
 import { dayLabel, nextMonday, today } from '../pages/dates.ts'
 import { periodLabel, ROUTE_LABELS, StatusBadge } from '../pages/leave.tsx'
 import { MeShell } from './MeShell.tsx'
@@ -238,11 +238,11 @@ function RequestSheet({ onClose, onSent }: { onClose: () => void; onSent: () => 
           <div className="fields">
             <label>
               De
-              <TimeField value={startTime} onChange={setStartTime} />
+              <TimePicker label="Début" value={startTime} onChange={setStartTime} />
             </label>
             <label>
               À
-              <TimeField value={endTime} onChange={setEndTime} />
+              <TimePicker label="Fin" value={endTime} onChange={setEndTime} />
             </label>
           </div>
         )}

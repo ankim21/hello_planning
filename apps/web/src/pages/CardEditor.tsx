@@ -184,11 +184,11 @@ export function CardEditor({
             <div className="fields">
               <label>
                 Début
-                <TimeField value={start} onChange={setStart} />
+                <TimePicker label="Heure de début" value={start} onChange={setStart} />
               </label>
               <label>
                 Fin
-                <TimeField value={end} onChange={setEnd} />
+                <TimePicker label="Heure de fin" value={end} onChange={setEnd} />
               </label>
               <label>
                 Pause (min)
@@ -283,11 +283,11 @@ export function CardEditor({
               <div className="fields">
                 <label>
                   De
-                  <TimeField value={startTime} onChange={setStartTime} />
+                  <TimePicker label="Début de l'absence" value={startTime} onChange={setStartTime} />
                 </label>
                 <label>
                   À
-                  <TimeField value={endTime} onChange={setEndTime} />
+                  <TimePicker label="Fin de l'absence" value={endTime} onChange={setEndTime} />
                 </label>
               </div>
             )}
@@ -352,5 +352,52 @@ export function TimeField({ value, onChange }: { value: string; onChange: (time:
       onChange={(event) => onChange(event.target.value)}
       onBlur={(event) => onChange(tidyTime(event.target.value))}
     />
+  )
+}
+
+const HOURS = Array.from({ length: 24 }, (_, hour) => String(hour).padStart(2, '0'))
+const MINUTE_STEPS = Array.from({ length: 12 }, (_, step) => String(step * 5).padStart(2, '0'))
+
+/**
+ * Hours and minutes chosen from two lists, always on 24 hours. Minutes go by
+ * five; a shift already saved with other minutes keeps them in the list.
+ */
+export function TimePicker({
+  value,
+  onChange,
+  label,
+}: {
+  value: string
+  onChange: (time: string) => void
+  label: string
+}) {
+  const [hour, minute] = TIME.test(value) ? value.split(':') : ['10', '00']
+  const minutes = [...new Set([...MINUTE_STEPS, minute])].sort()
+  return (
+    <span className="time-picker" role="group" aria-label={label}>
+      <select
+        aria-label={`${label}, heures`}
+        value={hour}
+        onChange={(event) => onChange(`${event.target.value}:${minute}`)}
+      >
+        {HOURS.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+      <span aria-hidden="true">:</span>
+      <select
+        aria-label={`${label}, minutes`}
+        value={minute}
+        onChange={(event) => onChange(`${hour}:${event.target.value}`)}
+      >
+        {minutes.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+    </span>
   )
 }

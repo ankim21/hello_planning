@@ -158,13 +158,20 @@ Screen: Gestion → **Planning**, for the site chosen in the header menu.
   absences add nothing.
 - **Daily recap**: number of people and total hours under each day, and the
   total of the period.
+- The week view is dense on purpose: ten employee rows fit on a 1500 × 900
+  screen at 100%, even with a coupure on each.
+- Alerts are a count next to the employee and a chip for the whole week;
+  hovering shows the list at once, clicking keeps it open.
+- Shift cards show their duration as decimal hours (7.17h); totals, counters
+  and recaps stay in hours and minutes (39h20).
 - Shift cards take the colour of their post: light tint for AM, strong tint
   for PM. Absence cards are grey. A leave request still waiting shows as a
   dashed orange card, only to the people allowed to see that request.
 
 ### 5.2 Adding and changing
 
-- **"+" in a cell** opens the editor. From the view by post, the post and
+- **"+" on the top-left corner of a day**, shown when the cell is hovered,
+  opens the editor. From the view by post, the post and
   service are already set and the employee is chosen in the editor.
 - **Clicking a card** opens the same editor on that card.
 - The editor's title names the employee ("Modifier le shift de …") on the
@@ -175,7 +182,10 @@ Screen: Gestion → **Planning**, for the site chosen in the header menu.
 | Shift | Start, end, break in minutes (20 by default), resulting duration, post, service (AM / PM), meals taken (1 by default), note |
 | Absence | Type (the 21 active types), from / to dates, whole day / half day / custom hours, note |
 
-- Times are typed in 24-hour format; "1630" or "16h30" becomes 16:30.
+- Hours are chosen from two lists (hours, then minutes by five), always on 24
+  hours. In the Badgeuse, paid hours are still typed, to the minute.
+- A shift with a note shows a small mark on its card; hovering the card shows
+  the note.
 - An end time at or before the start means the shift ends the next day
   (16:30 → 00:30).
 - Planned duration = length minus the break.
@@ -183,12 +193,20 @@ Screen: Gestion → **Planning**, for the site chosen in the header menu.
   absence created, or the reverse.
 - "Supprimer" deletes the card.
 
-### 5.3 Duplicating by dragging
+### 5.3 Moving, duplicating or deleting by dragging
 
-Dragging a shift card onto another cell creates a copy there with the same
-hours, break, meals and note. In the view by employee the copy goes to that
-day and that person; in the view by post it goes to that day with that row's
-post and service. The original is never moved. Dragging works with a mouse.
+While a shift card is dragged over another cell, that cell splits in two:
+"Déplacer" on the left and "Dupliquer" on the right. Dropping on a half does
+that: the shift leaves its original cell, or a copy is created and the
+original stays. Hours, break, meals and note are kept. In the view by
+employee the shift goes to that day and that person; in the view by post it
+goes to that day with that row's post and service.
+
+Dragging a shift out of the planning table and dropping it there deletes it.
+A bar at the bottom of the screen says so while dragging. After the deletion,
+"Annuler la suppression" stays for 8 seconds and puts the shift back.
+
+Dragging works with a mouse.
 
 ### 5.4 What is refused
 
@@ -214,11 +232,14 @@ exists: no check of weekly hours, rest days or legal limits.
 Kitchen and salle are published **separately, week by week**, from the
 planning's week view.
 
-- Status shown: "Non publié — invisible pour les salariés", "Partiellement
-  publié : la cuisine seulement" (or la salle), "Publié".
-- The head chef has "Publier la cuisine". The site director and multi-site
-  manager have "Publier la semaine" (both) and one button per department.
-- "Dépublier" hides it again.
+- One drop-down menu on the week view. Its colour gives the state: orange
+  "Non publié", blue "Partiellement publié", green "Publié".
+- Inside, each department is a blue button ("Publier la cuisine", "Publier la
+  salle") that becomes a grey box ("Cuisine publiée") once done, with a
+  "Dépublier" link beside it.
+- The head chef can act on the kitchen only and sees the salle's state. The
+  site director and multi-site manager can act on both, and also have
+  "Publier toute la semaine".
 - An employee sees a shift once the department of its post is published for
   the week the shift starts in.
 - After publication, changes show to employees immediately; there is no

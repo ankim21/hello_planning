@@ -102,7 +102,19 @@ The lab is left out of brick 1.
 | UI-4 | The month view covers a calendar month | Confirmed |
 | UI-5 | Times are typed in 24-hour format (16:30), whatever the language of the computer | Proposed |
 | PLN-27 | A second view of the week by post: one row per post and service, cards showing the employee, a recap per cell (people and hours) and a total per row | Confirmed |
-| PLN-28 | Dragging a shift onto another cell duplicates it there (other day, other employee, or other post in the view by post) | Confirmed |
+| PLN-28 | While a shift is dragged over another cell, the cell splits in two, "Déplacer" and "Dupliquer"; dropping on one half does that (as in Skello). Works to another day, another employee, or another post in the view by post | Confirmed |
+| PLN-42 | Dragging a shift out of the planning and dropping it deletes it | Confirmed |
+| PLN-43 | After such a deletion, an "Annuler la suppression" button stays for 8 seconds and puts the shift back | Proposed |
+| PLN-40 | In the shift and absence editor, hours are chosen from lists (hours, then minutes by five), always on 24 hours, not typed | Confirmed |
+| PLN-44 | Shift cards show their duration as decimal hours (7.17h, 5.5h), so a row can be added up; totals and counters stay in hours and minutes | Confirmed for the cards; the totals are Proposed |
+| PLN-45 | Publication is one drop-down menu whose colour gives the state (orange: nothing published, blue: one department, green: both). Each department is a blue "Publier" button that becomes a grey "publiée" box | Confirmed |
+| PLN-46 | A "Dépublier" link stays next to a published department | Proposed |
+| PLN-47 | The week planning is dense: at 100% on a 1500 × 900 screen, ten employee rows are visible even when each has a coupure (site director's feedback, 2026-11-17) | Confirmed |
+| PLN-48 | The "+" to add a shift is a small button on the top-left corner of the day, shown when the cell is hovered; no "+" row under the shifts | Confirmed |
+| PLN-49 | Alerts show their list at once on hover, for an employee and for the week; a click keeps the list open | Confirmed |
+| UI-7 | The tabs (Planning, Badgeuse, Demandes, Comptes) sit on the left, right after the restaurant menu; the bell and Mon espace are on the right | Confirmed |
+| UI-8 | No side margins on the planning and Badgeuse screens | Confirmed |
+| PLN-41 | A shift with a note shows a small mark on its card, and the note appears when hovering the card | Confirmed |
 | PLN-37 | A shift is refused when the person already has one during those hours, whether it is added by hand, edited or duplicated by dragging, and across every restaurant they work at | Confirmed |
 | PLN-38 | A person cannot have two shifts on the same post and the same service (AM / PM) on the same day, across their restaurants | Confirmed |
 | PLN-39 | Two different people may hold the same post in the same service | Confirmed |

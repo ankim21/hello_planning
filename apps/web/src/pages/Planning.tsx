@@ -14,6 +14,7 @@ import {
   type ReactNode,
   useCallback,
   useEffect,
+  useRef,
   useState,
 } from 'react'
 import { Link, useParams } from 'react-router'
@@ -33,6 +34,7 @@ import {
   addMonths,
   capitalise,
   dayLabel,
+  decimalHours,
   daysInMonth,
   firstOfMonth,
   hours,
@@ -47,6 +49,19 @@ const LOCK_LABELS: Record<LockStatus, string> = {
   OPEN: 'Ouvert',
   LOCKED: 'Verrouillé',
   PAYROLL: 'Comptabilisé pour la paie',
+}
+
+/** A shift as sent to the server. */
+interface ShiftBody {
+  employeeId: string
+  postId: string
+  service: 'AM' | 'PM'
+  date: string
+  start: string
+  end: string
+  breakMinutes: number
+  meals: number
+  note?: string
 }
 
 /** Where a dragged shift is dropped: a day, plus what the row stands for. */
@@ -77,6 +92,12 @@ function Board({ siteId }: { siteId: string }) {
   const [editing, setEditing] = useState<EditorTarget | null>(null)
   const [lockMenu, setLockMenu] = useState<string | null>(null)
   const [dragged, setDragged] = useState<ShiftCard | null>(null)
+  // While dragging: the cell under the pointer, and whether the pointer has
+  // left the planning (where dropping deletes the shift).
+  const [hoverCell, setHoverCell] = useState<string | null>(null)
+  const [outside, setOutside] = useState(false)
+  // A shift just deleted by dragging it out, which can still be put back.
+  const [undo, setUndo] = useState<ShiftBody | null>(null)
 
   const month = span === 'month'
   const from = month ? firstOfMonth(anchor) : mondayOf(anchor)
@@ -122,31 +143,121 @@ function Board({ siteId }: { siteId: string }) {
     }
   }
 
-  /** Copies the dragged shift to the cell it was dropped on. */
-  async function duplicate(target: DropTarget) {
-    const source = dragged
+  /** The shift as the server expects it, placed on a target cell. */
+  const bodyFor = (source: ShiftCard, target: DropTarget): ShiftBody => ({
+    employeeId: target.employeeId ?? source.employeeId,
+    postId: target.postId ?? source.postId,
+    service: target.service ?? source.service,
+    date: target.date,
+    start: source.start,
+    end: source.end,
+    breakMinutes: source.breakMinutes,
+    meals: source.meals,
+    note: source.note ?? undefined,
+  })
+
+  /** True when the target is the cell the shift already sits in. */
+  const isOrigin = (source: ShiftCard, target: DropTarget) =>
+    target.date === source.date &&
+    (target.employeeId ?? source.employeeId) === source.employeeId &&
+    (target.postId ?? source.postId) === source.postId &&
+    (target.service ?? source.service) === source.service
+
+  const endDrag = () => {
     setDragged(null)
+    setHoverCell(null)
+    setOutside(false)
+  }
+
+  /** Dropped on one of the two zones of a cell: move it there, or copy it there. */
+  async function dropOn(action: 'move' | 'duplicate', target: DropTarget) {
+    const source = dragged
+    endDrag()
     if (!source) return
-    const copy = {
-      employeeId: target.employeeId ?? source.employeeId,
-      postId: target.postId ?? source.postId,
-      service: target.service ?? source.service,
-      date: target.date,
-      start: source.start,
-      end: source.end,
-      breakMinutes: source.breakMinutes,
-      meals: source.meals,
-      note: source.note ?? undefined,
-    }
-    // Dropped back where it came from: nothing to copy.
-    const unchanged =
-      copy.date === source.date &&
-      copy.employeeId === source.employeeId &&
-      copy.postId === source.postId &&
-      copy.service === source.service
-    if (unchanged) return
     try {
-      await api(`/sites/${siteId}/shifts`, { method: 'POST', body: copy })
+      if (action === 'move') {
+        await api(`/sites/${siteId}/shifts/${source.id}`, {
+          method: 'PATCH',
+          body: bodyFor(source, target),
+        })
+      } else {
+        await api(`/sites/${siteId}/shifts`, { method: 'POST', body: bodyFor(source, target) })
+      }
+      load()
+    } catch (caught) {
+      setError((caught as Error).message)
+    }
+  }
+
+  /** Dropped outside the planning: the shift is deleted, and can be put back. */
+  const dropOutside = useCallback(
+    async (source: ShiftCard) => {
+      try {
+        await api(`/sites/${siteId}/shifts/${source.id}`, { method: 'DELETE' })
+        setUndo({
+          employeeId: source.employeeId,
+          postId: source.postId,
+          service: source.service,
+          date: source.date,
+          start: source.start,
+          end: source.end,
+          breakMinutes: source.breakMinutes,
+          meals: source.meals,
+          note: source.note ?? undefined,
+        })
+        load()
+      } catch (caught) {
+        setError((caught as Error).message)
+      }
+    },
+    [siteId, load],
+  )
+
+  // While a shift is dragged, everything outside the planning table is a
+  // place to drop it for deletion.
+  useEffect(() => {
+    if (!dragged) return
+    const inPlanning = (event: Event) =>
+      event.target instanceof Element && event.target.closest('table.planning') !== null
+    const onOver = (event: globalThis.DragEvent) => {
+      const out = !inPlanning(event)
+      setOutside(out)
+      if (out) {
+        event.preventDefault() // allows the drop
+        if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
+        setHoverCell(null)
+      }
+    }
+    const onDrop = (event: globalThis.DragEvent) => {
+      if (inPlanning(event)) return
+      event.preventDefault()
+      const source = dragged
+      setDragged(null)
+      setHoverCell(null)
+      setOutside(false)
+      dropOutside(source)
+    }
+    document.addEventListener('dragover', onOver)
+    document.addEventListener('drop', onDrop)
+    return () => {
+      document.removeEventListener('dragover', onOver)
+      document.removeEventListener('drop', onDrop)
+    }
+  }, [dragged, dropOutside])
+
+  // The "put it back" offer disappears by itself.
+  useEffect(() => {
+    if (!undo) return
+    const timer = setTimeout(() => setUndo(null), 8_000)
+    return () => clearTimeout(timer)
+  }, [undo])
+
+  async function putBack() {
+    const body = undo
+    setUndo(null)
+    if (!body) return
+    try {
+      await api(`/sites/${siteId}/shifts`, { method: 'POST', body })
       load()
     } catch (caught) {
       setError((caught as Error).message)
@@ -168,16 +279,22 @@ function Board({ siteId }: { siteId: string }) {
       key={card.id}
       className={`card shift ${card.service}`}
       style={{ '--post': card.color } as CSSProperties}
-      title={`${card.start} – ${card.end} · ${card.postName} ${card.service} · ${hours(card.minutes)}`}
+      // A shift with a note shows it on hover; the others get the usual summary.
+      title={
+        card.note
+          ? undefined
+          : `${card.start} – ${card.end} · ${card.postName} ${card.service} · ${decimalHours(card.minutes)}`
+      }
+      data-note={card.note ?? undefined}
       // Those who may only look get the same card, without the actions.
       disabled={!rights.editShifts}
       draggable={rights.editShifts}
       onDragStart={(event) => {
-        event.dataTransfer.effectAllowed = 'copy'
+        event.dataTransfer.effectAllowed = 'copyMove'
         event.dataTransfer.setData('text/plain', card.id)
         setDragged(card)
       }}
-      onDragEnd={() => setDragged(null)}
+      onDragEnd={endDrag}
       onClick={() => setEditing({ kind: 'shift', shift: card })}
     >
       {month ? (
@@ -191,10 +308,15 @@ function Board({ siteId }: { siteId: string }) {
             <strong>
               {card.start} – {card.end}
             </strong>
-            <span>{hours(card.minutes)}</span>
+            <span>{decimalHours(card.minutes)}</span>
           </span>
           {label}
         </>
+      )}
+      {card.note && (
+        <span className="note-mark" aria-label={`Note : ${card.note}`}>
+          ✎
+        </span>
       )}
     </button>
   )
@@ -224,24 +346,49 @@ function Board({ siteId }: { siteId: string }) {
     </button>
   )
 
-  /** A day cell that accepts a dropped shift. */
-  const cell = (target: DropTarget, children: ReactNode) => (
-    <td
-      key={target.date}
-      className={[dragged ? 'drop' : '', isMonday(target.date) ? 'week-start' : ''].join(' ')}
-      onDragOver={(event: DragEvent) => {
-        if (!dragged) return
-        event.preventDefault() // allows the drop
-        event.dataTransfer.dropEffect = 'copy'
-      }}
-      onDrop={(event: DragEvent) => {
-        event.preventDefault()
-        duplicate(target)
-      }}
-    >
-      {children}
-    </td>
-  )
+  /**
+   * A day cell. While a shift is dragged over it, the cell splits in two:
+   * dropping on the left moves the shift here, on the right duplicates it.
+   */
+  const cell = (target: DropTarget, children: ReactNode) => {
+    const key = `${target.employeeId ?? `${target.postId}${target.service}`}:${target.date}`
+    const accepts = dragged !== null && !isOrigin(dragged, target)
+    const zone = (action: 'move' | 'duplicate', label: string) => (
+      <div
+        className={`drop-zone ${action}`}
+        onDragOver={(event: DragEvent) => {
+          event.preventDefault() // allows the drop
+          event.dataTransfer.dropEffect = action === 'move' ? 'move' : 'copy'
+        }}
+        onDragEnter={(event: DragEvent) => event.currentTarget.classList.add('over')}
+        onDragLeave={(event: DragEvent) => event.currentTarget.classList.remove('over')}
+        onDrop={(event: DragEvent) => {
+          event.preventDefault()
+          event.stopPropagation()
+          dropOn(action, target)
+        }}
+      >
+        {label}
+      </div>
+    )
+    return (
+      <td
+        key={target.date}
+        className={isMonday(target.date) ? 'week-start' : ''}
+        onDragOver={() => {
+          if (accepts && hoverCell !== key) setHoverCell(key)
+        }}
+      >
+        {children}
+        {accepts && hoverCell === key && (
+          <div className="drop-zones">
+            {zone('move', 'Déplacer')}
+            {zone('duplicate', 'Dupliquer')}
+          </div>
+        )}
+      </td>
+    )
+  }
 
   const addButton = (label: string, target: EditorTarget) =>
     (rights.editShifts || rights.editAbsences) && (
@@ -280,6 +427,8 @@ function Board({ siteId }: { siteId: string }) {
 
         {/* Kitchen and salle are published separately, week by week: the
             staff see nothing of a department before it is published. */}
+        {!month && <WeekAlerts rows={data.rows} />}
+
         {!month && data.publication && (
           <Publication
             publication={data.publication}
@@ -288,16 +437,19 @@ function Board({ siteId }: { siteId: string }) {
           />
         )}
 
-        <span className="muted hint">
-          {rights.editShifts
-            ? 'Glissez un shift sur une autre case pour le dupliquer.'
-            : 'Consultation seule.'}
-        </span>
+        {rights.editShifts ? (
+          <span
+            className="chip help"
+            title="Glissez un shift : sur une case pour le déplacer ou le dupliquer, hors du planning pour le supprimer."
+          >
+            ?
+          </span>
+        ) : (
+          <span className="chip">Consultation seule</span>
+        )}
       </div>
 
       {error && <p className="error">{error}</p>}
-
-      <Alerts rows={data.rows} />
 
       <div className="planning-scroll panel">
         <table
@@ -422,19 +574,20 @@ function Board({ siteId }: { siteId: string }) {
               {data.rows.map((row) => (
                 <tr key={row.employee.id}>
                   <th className="employee">
-                    {row.employee.firstName} {row.employee.lastName}
+                    <span className="who">
+                      {row.employee.firstName} {row.employee.lastName}
+                    </span>
                     <span className="muted">
                       {row.contractMinutes === null
                         ? 'Forfait jours'
                         : `${hours(row.contractMinutes)} / sem.`}
                     </span>
                     {row.alerts.length > 0 && (
-                      <span
-                        className="alert-badge"
-                        title={row.alerts.map(alertText).join('\n')}
-                      >
-                        ⚠ {row.alerts.length} alerte{row.alerts.length > 1 ? 's' : ''}
-                      </span>
+                      <AlertPop label={`⚠ ${row.alerts.length}`} name="Alertes de la semaine">
+                        {row.alerts.map((alert, index) => (
+                          <li key={index}>{alertText(alert)}</li>
+                        ))}
+                      </AlertPop>
                     )}
                   </th>
                   {data.days.map((day) =>
@@ -514,6 +667,22 @@ function Board({ siteId }: { siteId: string }) {
         </table>
       </div>
 
+      {/* While dragging: a reminder that leaving the planning deletes. */}
+      {dragged && (
+        <div className={outside ? 'bin-bar active' : 'bin-bar'} aria-live="polite">
+          {outside
+            ? 'Relâchez pour supprimer ce shift'
+            : 'Sortez du planning pour supprimer ce shift'}
+        </div>
+      )}
+
+      {undo && (
+        <div className="toast" role="status">
+          Shift supprimé.
+          <button onClick={putBack}>Annuler la suppression</button>
+        </div>
+      )}
+
       {editing && (
         <CardEditor
           siteId={siteId}
@@ -532,9 +701,14 @@ function Board({ siteId }: { siteId: string }) {
   )
 }
 
-const DEPARTMENT_LABELS: Record<Department, string> = { KITCHEN: 'la cuisine', SALLE: 'la salle' }
+const DEPARTMENT_NAMES: Record<Department, string> = { KITCHEN: 'Cuisine', SALLE: 'Salle' }
 
-/** The publication state of the week, and the buttons this person may use. */
+/**
+ * The publication of the week, as one menu. Its colour gives the state at a
+ * glance: orange when nothing is published, blue when one department is,
+ * green when both are. Inside, each department is a blue button to publish
+ * it, which becomes a grey "publiée" box once done.
+ */
 function Publication({
   publication,
   mayPublish,
@@ -544,40 +718,84 @@ function Publication({
   mayPublish: Department[]
   onChange: (departments: Department[], published: boolean) => void
 }) {
+  const [open, setOpen] = useState(false)
+  const box = useRef<HTMLDivElement>(null)
   const departments: Department[] = ['SALLE', 'KITCHEN']
   const published = departments.filter((department) => publication[department])
   const pending = mayPublish.filter((department) => !publication[department])
-  const state =
-    published.length === 2
-      ? 'Publié'
-      : published.length === 1
-        ? `Partiellement publié : ${DEPARTMENT_LABELS[published[0]]} seulement`
-        : 'Non publié — invisible pour les salariés'
+  const state = published.length === 2 ? 'all' : published.length === 1 ? 'partial' : 'none'
+  const label = { all: 'Publié', partial: 'Partiellement publié', none: 'Non publié' }[state]
+
+  // Close when clicking elsewhere or pressing Escape.
+  useEffect(() => {
+    if (!open) return
+    const onClick = (event: MouseEvent) => {
+      if (!box.current?.contains(event.target as Node)) setOpen(false)
+    }
+    const onKey = (event: KeyboardEvent) => event.key === 'Escape' && setOpen(false)
+    document.addEventListener('mousedown', onClick)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onClick)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
   return (
-    <span className="period">
-      <span className={published.length === 2 ? 'chip published' : 'chip draft'}>{state}</span>
-      {/* Someone who may publish both gets one button for the whole week. */}
-      {pending.length === 2 && (
-        <button className="primary" onClick={() => onChange(pending, true)}>
-          Publier la semaine
-        </button>
+    <div className="publish" ref={box}>
+      <button
+        className={`publish-toggle ${state}`}
+        aria-haspopup="true"
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+      >
+        {label} <span aria-hidden="true">▾</span>
+      </button>
+
+      {open && (
+        <div className="publish-menu" role="menu">
+          <p className="muted">
+            Les salariés ne voient un shift qu'une fois sa partie du planning publiée.
+          </p>
+          {departments.map((department) => {
+            const name = DEPARTMENT_NAMES[department]
+            const at = publication[department]
+            const allowed = mayPublish.includes(department)
+            if (at) {
+              return (
+                <div key={department} className="publish-row">
+                  <span className="publish-done">{name} publiée</span>
+                  {allowed && (
+                    <button className="quiet" onClick={() => onChange([department], false)}>
+                      Dépublier
+                    </button>
+                  )}
+                </div>
+              )
+            }
+            return (
+              <div key={department} className="publish-row">
+                {allowed ? (
+                  <button className="publish-go" onClick={() => onChange([department], true)}>
+                    Publier la {name.toLowerCase()}
+                  </button>
+                ) : (
+                  <span className="publish-waiting">{name} non publiée</span>
+                )}
+              </div>
+            )
+          })}
+          {/* Someone who may publish both gets one button for the whole week. */}
+          {pending.length === 2 && (
+            <div className="publish-row">
+              <button className="publish-go whole" onClick={() => onChange(pending, true)}>
+                Publier toute la semaine
+              </button>
+            </div>
+          )}
+        </div>
       )}
-      {mayPublish.map((department) =>
-        publication[department] ? (
-          <button key={department} onClick={() => onChange([department], false)}>
-            Dépublier {DEPARTMENT_LABELS[department]}
-          </button>
-        ) : (
-          <button
-            key={department}
-            className={pending.length === 2 ? '' : 'primary'}
-            onClick={() => onChange([department], true)}
-          >
-            Publier {DEPARTMENT_LABELS[department]}
-          </button>
-        ),
-      )}
-    </span>
+    </div>
   )
 }
 
@@ -598,30 +816,93 @@ function alertText(alert: PlanningAlert): string {
   }
 }
 
-/** The week's alerts, listed above the planning. Folded when there are many. */
-function Alerts({ rows }: { rows: PlanningRow[] }) {
+/** All the week's alerts behind one chip in the toolbar. */
+function WeekAlerts({ rows }: { rows: PlanningRow[] }) {
   const concerned = rows.filter((row) => row.alerts.length > 0)
   const count = concerned.reduce((total, row) => total + row.alerts.length, 0)
   if (count === 0) return null
   return (
-    <details className="alerts" open={count <= 6}>
-      <summary>
-        ⚠ {count} alerte{count > 1 ? 's' : ''} sur cette semaine
-        <span className="muted"> — à vérifier, sans bloquer le planning</span>
-      </summary>
-      <ul>
-        {concerned.map((row) =>
-          row.alerts.map((alert, index) => (
-            <li key={row.employee.id + index}>
-              <strong>
-                {row.employee.firstName} {row.employee.lastName}
-              </strong>{' '}
-              · {alertText(alert)}
-            </li>
-          )),
-        )}
-      </ul>
-    </details>
+    <AlertPop
+      label={`⚠ ${count} alerte${count > 1 ? 's' : ''}`}
+      name="Alertes de la semaine — à vérifier, sans bloquer"
+    >
+      {concerned.map((row) =>
+        row.alerts.map((alert, index) => (
+          <li key={row.employee.id + index}>
+            <strong>
+              {row.employee.firstName} {row.employee.lastName}
+            </strong>{' '}
+            · {alertText(alert)}
+          </li>
+        )),
+      )}
+    </AlertPop>
+  )
+}
+
+/**
+ * An alert count that shows its list at once when hovered, and keeps it open
+ * when clicked (click again, click elsewhere or press Escape to close).
+ */
+function AlertPop({ label, name, children }: { label: string; name: string; children: ReactNode }) {
+  const [hovered, setHovered] = useState(false)
+  const [pinned, setPinned] = useState(false)
+  const [place, setPlace] = useState<CSSProperties>({})
+  const anchor = useRef<HTMLSpanElement>(null)
+  const open = hovered || pinned
+
+  // The list is placed against the window, so the table never clips it.
+  const locate = () => {
+    const rect = anchor.current?.getBoundingClientRect()
+    if (!rect) return
+    setPlace({
+      left: Math.max(8, Math.min(rect.left, window.innerWidth - 368)),
+      top: Math.min(rect.bottom + 4, window.innerHeight - 120),
+    })
+  }
+
+  useEffect(() => {
+    if (!pinned) return
+    const onClick = (event: MouseEvent) => {
+      if (!anchor.current?.contains(event.target as Node)) setPinned(false)
+    }
+    const onKey = (event: KeyboardEvent) => event.key === 'Escape' && setPinned(false)
+    document.addEventListener('mousedown', onClick)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onClick)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [pinned])
+
+  return (
+    <span
+      className="alert-pop"
+      ref={anchor}
+      onMouseEnter={() => {
+        locate()
+        setHovered(true)
+      }}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <button
+        className={pinned ? 'alert-badge pinned' : 'alert-badge'}
+        aria-expanded={open}
+        aria-label={`${name} : ${label.replace('⚠', '').trim()}`}
+        onClick={() => {
+          locate()
+          setPinned(!pinned)
+        }}
+      >
+        {label}
+      </button>
+      {open && (
+        <span className="alert-list" role="dialog" aria-label={name} style={place}>
+          <strong>{name}</strong>
+          <ul>{children}</ul>
+        </span>
+      )}
+    </span>
   )
 }
 

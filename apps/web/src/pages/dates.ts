@@ -63,6 +63,14 @@ export function hours(minutes: number): string {
   return `${sign}${Math.floor(abs / 60)}h${pad(abs % 60)}`
 }
 
+/**
+ * 430 → "7.17h", 330 → "5.5h", 420 → "7h". Hours as a decimal number, so
+ * the shifts of a row can be added up at a glance.
+ */
+export function decimalHours(minutes: number): string {
+  return `${Number((minutes / 60).toFixed(2))}h`
+}
+
 /** Minutes between two HH:MM times; an end at or before the start is next day. */
 export function minutesBetween(start: string, end: string): number {
   const toMinutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3))

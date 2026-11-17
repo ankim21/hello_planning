@@ -36,7 +36,7 @@
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); }
 main { max-width: 1040px; margin: 0 auto; padding: 28px 24px 64px; }
-main.wide { max-width: none; }
+main.wide { max-width: none; padding: 8px 6px 24px; }
 main.narrow { max-width: 380px; padding-top: 12vh; }
 main.narrow-page { max-width: 560px; }
 h1 { font-size: 1.4rem; margin: 0 0 12px; }
@@ -67,19 +67,23 @@ label.radio { flex-direction: row; align-items: center; gap: 6px; }
 output { padding: 8px 0; font-weight: 600; }
 
 /* Header */
-.topbar { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; padding: 14px 24px; background: var(--space); color: var(--space-text); position: sticky; top: 0; z-index: 8; }
+.topbar { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; padding: 6px 12px; background: var(--space); color: var(--space-text); position: sticky; top: 0; z-index: 8; }
 .brand { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.15rem; letter-spacing: 0.04em; }
 .brand-et, .brand-title span { color: #f59e0b; font-weight: 500; }
 .brand-title { display: flex; align-items: center; gap: 12px; justify-content: center; letter-spacing: 0.04em; font-size: 1.7rem; margin-bottom: 24px; }
 .site-menu { background: rgb(255 255 255 / 0.1); color: var(--space-text); border-color: rgb(255 255 255 / 0.2); font-weight: 600; max-width: 100%; }
 .site-menu option { color: #171a2b; background: #ffffff; }
-.topbar nav { display: flex; gap: 4px; margin-left: auto; flex-wrap: wrap; }
+.topbar nav { display: flex; gap: 4px; flex-wrap: wrap; }
+.topbar-right { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.topbar-right .space-switch { color: var(--space-text); text-decoration: none; }
 .topbar nav a { color: var(--space-text); text-decoration: none; padding: 8px 14px; border-radius: 8px; opacity: 0.75; }
 .topbar nav a:hover { opacity: 1; }
 .topbar nav a.active { background: rgb(255 255 255 / 0.14); opacity: 1; font-weight: 600; }
 
 /* Toolbars and small controls */
 .toolbar { margin-bottom: 18px; }
+main.wide .toolbar { margin-bottom: 8px; padding: 0 4px; }
+main.wide .panel { margin-top: 0; border-radius: 8px; }
 .toolbar h1 { margin: 0; }
 .period { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .period strong { min-width: 190px; text-align: center; }
@@ -103,28 +107,32 @@ table.list { width: 100%; border-collapse: collapse; }
 /* Planning grid */
 .planning-scroll { overflow-x: auto; padding: 0; }
 table.planning { width: 100%; min-width: 1100px; table-layout: fixed; border-collapse: collapse; }
-.planning th, .planning td { vertical-align: top; border: 1px solid var(--line); padding: 10px; }
-/* A day cell keeps a comfortable height even when it is empty. */
-.planning:not(.month) tbody td { height: 116px; }
-.planning:not(.month) thead th { padding: 14px 10px; }
-.planning:not(.month) th.employee { padding: 14px 12px; }
+/* Dense on purpose: ten employee rows must fit on one screen at 100%. */
+.planning th, .planning td { vertical-align: top; border: 1px solid var(--line); padding: 2px; }
+.planning:not(.month) tbody td { height: 38px; }
+.planning:not(.month) thead th { padding: 5px 8px; font-size: 0.82rem; }
+.planning:not(.month) th.employee { padding: 4px 8px; line-height: 1.25; font-size: 0.86rem; }
+.planning th.employee .who { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .planning tr > :first-child { border-left: none; }
 .planning tr > :last-child { border-right: none; }
 .planning thead th { border-top: none; font-weight: 600; font-size: 0.9rem; text-align: left; background: var(--surface); }
 .planning thead th.today { color: var(--accent); }
-.planning th:first-child { width: 180px; text-align: left; }
+.planning th:first-child { width: 150px; text-align: left; }
 .planning th.employee { font-weight: 600; }
-.planning th.employee .muted { display: block; font-weight: 400; font-size: 0.82rem; }
-.planning td.total, .planning th:last-child { width: 96px; text-align: right; }
-.planning td.total span { display: block; font-size: 0.82rem; }
-.planning tfoot td, .planning tfoot th { font-size: 0.85rem; border-bottom: none; background: color-mix(in srgb, var(--line) 45%, var(--surface)); }
+.planning th.employee .muted { font-weight: 400; font-size: 0.76rem; margin-right: 6px; }
+.planning td.total, .planning th:last-child { width: 78px; text-align: right; }
+.planning:not(.month) td.total { padding: 4px 8px; line-height: 1.25; font-size: 0.86rem; }
+.planning td.total span { display: block; font-size: 0.76rem; }
+.planning tfoot td, .planning tfoot th { padding: 5px 8px; font-size: 0.8rem; border-bottom: none; background: color-mix(in srgb, var(--line) 45%, var(--surface)); }
 .over { color: #dc2626; }
 .under { color: #2563eb; }
 .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
-.cell-recap { display: flex; justify-content: space-between; font-size: 0.75rem; margin-top: 4px; }
+.cell-recap { display: flex; justify-content: space-between; font-size: 0.68rem; margin-top: 1px; line-height: 1.2; }
 .view-tabs { gap: 12px; }
 
-.card { display: block; width: 100%; text-align: left; margin-bottom: 6px; padding: 10px 12px; border: none; border-left: 4px solid var(--post, var(--muted)); border-radius: 8px; font-size: 0.88rem; line-height: 1.5; }
+.card { display: block; width: 100%; text-align: left; margin-bottom: 2px; padding: 2px 6px; border: none; border-left: 4px solid var(--post, var(--muted)); border-radius: 5px; font-size: 0.72rem; line-height: 1.15; }
+.card strong { font-size: 0.77rem; }
+.card:last-of-type { margin-bottom: 0; }
 .card .row { flex-wrap: wrap; gap: 0 8px; }
 .card .row strong { white-space: nowrap; }
 .card.shift.AM { background: color-mix(in srgb, var(--post) 22%, var(--surface)); }
@@ -132,9 +140,11 @@ table.planning { width: 100%; min-width: 1100px; table-layout: fixed; border-col
 .card.absence { background: color-mix(in srgb, var(--muted) 30%, var(--surface)); border-left-color: var(--muted); }
 .card.absence strong { display: block; }
 .card[draggable='true'] { cursor: grab; }
-.planning td .add { width: 100%; padding: 4px 0; border: 1px dashed var(--line); background: none; color: var(--muted); opacity: 0.45; }
-.planning td .add:hover, .planning td .add:focus-visible { opacity: 1; }
-.planning td.drop { outline: 2px dashed var(--accent); outline-offset: -3px; }
+/* Adding: a small + in the top-left corner of the day, shown when the cell
+   is hovered (always, faintly, on touch screens where nothing hovers). */
+.planning td .add { position: absolute; top: -7px; left: -7px; z-index: 5; width: 17px; height: 17px; padding: 0; border-radius: 50%; border: 1px solid var(--accent); background: var(--surface); color: var(--accent); font-size: 0.8rem; font-weight: 700; line-height: 1; opacity: 0; }
+.planning td:hover .add, .planning td .add:focus-visible { opacity: 1; }
+@media (hover: none) { .planning td .add { opacity: 0.55; } }
 
 /* Month view: many narrow days */
 .planning.month th:first-child { width: 160px; }
@@ -147,8 +157,7 @@ table.planning { width: 100%; min-width: 1100px; table-layout: fixed; border-col
 .planning.month .week-start { border-left: 3px solid var(--line); }
 .planning.month .card { padding: 5px 6px; line-height: 1.35; border-left-width: 3px; font-size: 0.7rem; margin-bottom: 3px; }
 .planning.month .card strong { display: block; font-weight: 600; }
-.planning.month td .add { opacity: 0; height: 14px; line-height: 1; font-size: 0.75rem; }
-.planning.month td:hover .add, .planning.month td .add:focus-visible { opacity: 1; }
+.planning.month td .add { top: -5px; left: -5px; width: 13px; height: 13px; font-size: 0.6rem; }
 .planning.month tfoot td { font-size: 0.68rem; text-align: center; }
 .planning.month .lock-wrap { float: none; display: block; }
 
@@ -285,12 +294,14 @@ ul.accounts { gap: 0; }
 .notice.secret code { font-size: 1.15rem; font-weight: 700; letter-spacing: 0.05em; }
 input[type='search'] { min-width: 260px; }
 
-/* Planning alerts: warnings only */
-.alerts { margin: 0 0 16px; padding: 14px 18px; border-radius: 12px; border: 1px solid #f59e0b; background: color-mix(in srgb, #f59e0b 10%, var(--surface)); }
-.alerts summary { cursor: pointer; font-weight: 600; }
-.alerts summary .muted { font-weight: 400; }
-.alerts ul { margin: 12px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
-.alert-badge { display: inline-block; margin-top: 6px; padding: 2px 8px; border-radius: 999px; font-size: 0.78rem; font-weight: 600; background: color-mix(in srgb, #f59e0b 22%, var(--surface)); cursor: help; }
+/* Planning alerts: a count that shows its list on hover, pinned on click */
+.alert-pop { position: relative; display: inline-flex; }
+.alert-badge { padding: 1px 7px; border-radius: 999px; border: 1px solid transparent; font-size: 0.74rem; font-weight: 700; line-height: 1.4; background: color-mix(in srgb, #f59e0b 26%, var(--surface)); color: var(--text); cursor: pointer; }
+.toolbar .alert-badge { padding: 7px 12px; font-size: 0.88rem; border-color: #f59e0b; }
+.alert-badge.pinned { border-color: #b45309; background: color-mix(in srgb, #f59e0b 45%, var(--surface)); }
+.alert-list { position: fixed; z-index: 45; width: 360px; max-height: 60vh; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border-radius: 10px; border: 1px solid #f59e0b; background: var(--surface); color: var(--text); font-size: 0.86rem; font-weight: 400; text-align: left; white-space: normal; box-shadow: 0 10px 28px rgb(0 0 0 / 0.22); }
+.alert-list ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 5px; }
+.chip.help { cursor: help; font-weight: 700; }
 
 /* Notification bell (both spaces) */
 .bell { position: relative; display: inline-flex; }
@@ -309,4 +320,49 @@ input[type='search'] { min-width: 260px; }
 /* On a phone the panel takes the width of the screen instead of hanging off the bell. */
 @media (max-width: 640px) {
   .bell-panel { position: fixed; left: 12px; right: 12px; top: 72px; width: auto; }
+}
+
+/* Time picker: hours and minutes from two lists */
+.time-picker { display: inline-flex; align-items: center; gap: 4px; }
+.time-picker select { width: auto; padding: 8px 6px; font-variant-numeric: tabular-nums; }
+.fields .time-picker select { width: auto; }
+
+/* Dragging a shift: the cell under it splits into "move" and "duplicate" */
+.planning td { position: relative; }
+.drop-zones { position: absolute; inset: 0; z-index: 4; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; background: color-mix(in srgb, var(--surface) 82%, transparent); }
+.drop-zone { display: flex; align-items: center; justify-content: center; border-radius: 8px; border: 2px dashed var(--line); font-size: 0.82rem; font-weight: 700; color: var(--muted); text-align: center; }
+.drop-zone.move.over { border-color: #2563eb; background: color-mix(in srgb, #2563eb 22%, var(--surface)); color: var(--text); }
+.drop-zone.duplicate.over { border-color: #16a34a; background: color-mix(in srgb, #16a34a 22%, var(--surface)); color: var(--text); }
+.planning.month .drop-zones { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; gap: 2px; padding: 2px; }
+.planning.month .drop-zone { font-size: 0.6rem; border-width: 1px; }
+
+/* Dragging a shift out of the planning deletes it */
+.bin-bar { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 50; padding: 12px 22px; border-radius: 999px; border: 2px dashed #dc2626; background: var(--surface); color: #dc2626; font-weight: 600; box-shadow: 0 8px 24px rgb(0 0 0 / 0.2); pointer-events: none; }
+.bin-bar.active { background: #dc2626; color: #ffffff; border-style: solid; }
+.toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 50; display: flex; align-items: center; gap: 14px; padding: 12px 14px 12px 20px; border-radius: 12px; background: var(--text); color: var(--bg); box-shadow: 0 8px 24px rgb(0 0 0 / 0.25); }
+.toast button { background: none; border: 1px solid currentColor; color: inherit; padding: 6px 12px; }
+
+/* A shift's note: a small mark on the card, the text on hover */
+.card[data-note] { position: relative; }
+.note-mark { position: absolute; right: 5px; bottom: 1px; font-size: 0.7rem; opacity: 0.75; }
+.card[data-note]:hover::after, .card[data-note]:focus-visible::after { content: attr(data-note); position: absolute; left: 0; top: calc(100% + 4px); z-index: 6; width: max-content; max-width: 240px; padding: 8px 10px; border-radius: 8px; background: var(--text); color: var(--bg); font-size: 0.82rem; font-weight: 400; line-height: 1.4; white-space: pre-wrap; text-align: left; box-shadow: 0 6px 18px rgb(0 0 0 / 0.25); pointer-events: none; }
+.planning.month .note-mark { right: 2px; bottom: 0; font-size: 0.65rem; }
+
+/* Publication: one menu whose colour gives the state */
+.publish { position: relative; display: inline-block; }
+.publish-toggle { font-weight: 600; display: inline-flex; align-items: center; gap: 8px; }
+.publish-toggle.none { border-color: #f59e0b; background: color-mix(in srgb, #f59e0b 16%, var(--surface)); }
+.publish-toggle.partial { border-color: #2563eb; background: color-mix(in srgb, #2563eb 14%, var(--surface)); }
+.publish-toggle.all { border-color: #16a34a; background: color-mix(in srgb, #16a34a 16%, var(--surface)); }
+.publish-menu { position: absolute; right: 0; top: calc(100% + 8px); z-index: 20; width: 300px; display: flex; flex-direction: column; gap: 10px; padding: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 32px rgb(0 0 0 / 0.2); }
+.publish-menu p { margin: 0; font-size: 0.84rem; }
+.publish-row { display: flex; align-items: center; gap: 8px; }
+.publish-go { flex: 1; background: #2563eb; border-color: #2563eb; color: #ffffff; font-weight: 600; }
+.publish-go.whole { background: var(--surface); color: #2563eb; }
+.publish-done, .publish-waiting { flex: 1; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--line); background: color-mix(in srgb, var(--line) 55%, var(--surface)); color: var(--muted); font-weight: 600; }
+.publish-waiting { background: none; border-style: dashed; font-weight: 400; }
+.publish-menu button.quiet { border: none; background: none; color: var(--muted); font-size: 0.85rem; padding: 6px 4px; }
+/* On a phone the menu takes the width of the screen. */
+@media (max-width: 640px) {
+  .publish-menu { position: fixed; left: 12px; right: 12px; top: auto; width: auto; margin-top: 8px; }
 }
