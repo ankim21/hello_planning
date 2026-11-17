@@ -32,8 +32,10 @@ const shiftSchema = z.object({
   date,
   start: time,
   end: time,
-  breakMinutes: z.number().int().min(0).max(240).default(20),
-  meals: z.number().int().min(0).max(5).default(1),
+  // Left out, both follow the company rule for that start time
+  // (20 minutes and one meal; none for a start at 12:00 or 19:00).
+  breakMinutes: z.number().int().min(0).max(240).optional(),
+  meals: z.number().int().min(0).max(5).optional(),
   note: z.string().max(500).optional(),
 });
 
@@ -48,6 +50,19 @@ const absenceSchema = z.object({
   note: z.string().max(500).optional(),
 });
 
+const needsSchema = z.object({
+  needs: z
+    .array(
+      z.object({
+        weekday: z.number().int().min(0).max(6), // 0 = Monday
+        service: z.enum(['AM', 'PM']),
+        postId: z.uuid().nullable(),
+        department: z.enum(['KITCHEN', 'SALLE']).nullable(),
+        count: z.number().int().min(0).max(50),
+      }),
+    )
+    .max(500),
+});
 const publicationSchema = z.object({
   department: z.enum(['KITCHEN', 'SALLE']),
   published: z.boolean(),
@@ -130,6 +145,27 @@ export class PlanningController {
     @Param('id') id: string,
   ) {
     return this.planning.deleteAbsence(user, siteId, id);
+  }
+
+  @Get('needs')
+  needs(@CurrentUser() user: SessionUser, @Param('siteId') siteId: string) {
+    this.access.assert(user, 'shift.read', siteId);
+    return this.planning.needs(siteId);
+  }
+
+  @Put('needs')
+  setNeeds(
+    @CurrentUser() user: SessionUser,
+    @Param('siteId') siteId: string,
+    @Body({ schema: needsSchema }) { needs }: z.infer<typeof needsSchema>,
+  ) {
+    return this.planning.setNeeds(user, siteId, needs);
+  }
+
+  @Get('popular-shifts')
+  popularShifts(@CurrentUser() user: SessionUser, @Param('siteId') siteId: string) {
+    this.access.assert(user, 'shift.read', siteId);
+    return this.planning.popularShifts(siteId);
   }
 
   @Put('weeks/:monday/publication')

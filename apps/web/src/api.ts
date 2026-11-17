@@ -184,6 +184,29 @@ export interface AbsenceCard {
   startTime: string | null
   endTime: string | null
   note: string | null
+  /** What one day of it is worth, in minutes; null on forfait jours. */
+  dayMinutes: number | null
+}
+/** A post (or a department total) short of what the restaurant's rule asks. */
+export interface MissingPost {
+  date: string
+  service: 'AM' | 'PM'
+  label: string
+  department: Department
+  needed: number
+  planned: number
+}
+/** A shift this restaurant plans often, offered as a template. */
+export interface PopularShift {
+  postId: string
+  postName: string
+  color: string
+  service: 'AM' | 'PM'
+  start: string
+  end: string
+  breakMinutes: number
+  meals: number
+  uses: number
 }
 export interface PlanningAlert {
   kind: 'REST_DAYS' | 'WEEKLY_MAX' | 'DAILY_REST' | 'SHIFT_ON_ABSENCE'
@@ -195,6 +218,8 @@ export interface PlanningRow {
   employee: Person
   contractMinutes: number | null
   plannedMinutes: number
+  /** Hours added by absences that count (congé payé), a fifth of the contract a day. */
+  absenceMinutes: number
   differenceMinutes: number | null
   shifts: ShiftCard[]
   absences: AbsenceCard[]
@@ -212,7 +237,11 @@ export interface PlanningWeek {
     lock: boolean
     /** The departments this person may publish. */
     publish: Department[]
+    /** May change the restaurant's staffing needs. */
+    needs: boolean
   }
+  /** Posts the restaurant's rule asks for and the planning lacks, by day. */
+  missing: MissingPost[]
   /** When each department was published for the staff; only given for a week. */
   publication: Record<Department, string | null> | null
   days: { date: string; lock: LockStatus; people: number; minutes: number }[]
@@ -304,6 +333,7 @@ export interface MyDay {
     dayPart: 'FULL_DAY' | 'HALF_DAY' | 'CUSTOM'
     startTime: string | null
     endTime: string | null
+    dayMinutes: number | null
   }[]
   requests: { id: string; typeName: string }[]
 }
@@ -311,6 +341,8 @@ export interface MyWeek {
   from: string
   days: MyDay[]
   totalMinutes: number
+  /** Hours added by paid leave, counted with the shifts against the contract. */
+  absenceMinutes: number
   contractMinutes: number | null
   bySite: { site: { id: string; name: string }; shifts: number; minutes: number }[]
   /** My restaurants, and whether each has published this week. */
@@ -348,5 +380,25 @@ export interface Account {
 }
 export interface AccountOptions {
   sites: { id: string; name: string }[]
+  posts: { id: string; name: string; department: 'KITCHEN' | 'SALLE'; color: string }[]
   employeesWithoutAccount: Person[]
+}
+
+/** An employee record, as the administrators see and edit it. */
+export interface EmployeeRecord {
+  id: string
+  firstName: string
+  lastName: string
+  phone: string | null
+  hasPin: boolean
+  account: { id: string; email: string } | null
+  primarySiteId: string | null
+  sites: { id: string; name: string; isPrimary: boolean }[]
+  postIds: string[]
+  contract: {
+    type: 'CDI' | 'CDD' | 'EXTRA' | 'APPRENTICE'
+    weeklyHours: number | null
+    forfaitJours: boolean
+    startDate: string
+  } | null
 }

@@ -104,8 +104,21 @@ Rules:
 - If the e-mail cannot be sent, the administrator is shown a temporary
   password once, to pass on by hand.
 
-Not possible from a screen: creating an employee, changing which restaurants
-an employee works at or which posts they hold, setting a tablet PIN.
+**Employee records** (same screen). An account is a login; an employee
+record is the person: name, phone, main restaurant and the others they work
+at, posts held, contract type, weekly hours or forfait jours, contract start,
+and the 4-digit tablet PIN.
+
+| Action | What happens |
+|---|---|
+| "Nouveau salarié" | Creates a person with no login. They appear on the planning of their restaurants and on the tablet, and are listed under "Salariés sans compte". |
+| "Créer sa fiche salarié" on an account | Creates the person and attaches them to that account, which then has Ma semaine, Restaurant and Congés. |
+| "Modifier la fiche salarié" | Changes the details, the restaurants, the posts, the current contract and, if typed, the PIN. Past shifts are untouched. |
+
+The PIN is never shown again once saved; leaving the field empty keeps it.
+
+Not possible from a screen: removing an employee, keeping a history of
+contracts, importing employees from a file or from PayFit.
 
 ---
 
@@ -153,9 +166,13 @@ Screen: Gestion → **Planning**, for the site chosen in the header menu.
 - Week navigation by arrows; "Aujourd'hui" returns to the current period.
 - The week number shown is the ISO week (Semaine 47).
 - Each employee row shows the contract's weekly hours, or "Forfait jours".
-- **Weekly counter** (week view): planned hours, and the difference with the
-  contract in red when over, blue when under. Only shifts are counted;
-  absences add nothing.
+- **Weekly counter** (week view): planned hours plus the days of congé payé,
+  and the difference with the contract in red when over, blue when under. A
+  day of congé payé is worth a fifth of the contract and at most five days
+  count per week. Other absences add nothing.
+- **Absence cards** show what the day is worth: a fifth of the weekly contract
+  (7h on 35 hours, 7.8h on 39), half of it for a half day, the hours given for
+  custom hours. Nothing on forfait jours.
 - **Daily recap**: number of people and total hours under each day, and the
   total of the period.
 - The week view is dense on purpose: ten employee rows fit on a 1500 × 900
@@ -179,7 +196,7 @@ Screen: Gestion → **Planning**, for the site chosen in the header menu.
 
 | Tab | Fields |
 |---|---|
-| Shift | Start, end, break in minutes (20 by default), resulting duration, post, service (AM / PM), meals taken (1 by default), note |
+| Shift | Start, end, break in minutes, resulting duration, post, service (AM / PM), meals taken, note. The break and meals follow the start time: 20 minutes and one meal, or none of either for a start at 12:00 or 19:00; both stay editable |
 | Absence | Type (the 21 active types), from / to dates, whole day / half day / custom hours, note |
 
 - Hours are chosen from two lists (hours, then minutes by five), always on 24
@@ -208,6 +225,26 @@ A bar at the bottom of the screen says so while dragging. After the deletion,
 
 Dragging works with a mouse.
 
+### 5.3b Popular shifts
+
+When adding or changing a shift, the editor offers up to six "Shifts
+fréquents": the combinations of hours, post, service, break and meals this
+restaurant has planned most often in the last two months (at least twice).
+Clicking one fills the form; everything stays editable. Opened from a post's
+row, that post's usual shifts come first.
+
+### 5.3c The restaurant's needs
+
+"Besoins", on the week view, opens a grid for the restaurant: for each day of
+the week and each service (midi, soir), the number of people wanted on each
+post, plus a total for the salle and a total for the kitchen. The rule is the
+same every week. Set by the site director or the multi-site manager.
+
+The planning then compares the rule with what is planned. A chip
+"⚠ n postes manquants" lists the gaps by day ("sam. 19 déc. · soir : Bar 0/1"),
+and the same list appears in the publication menu before publishing. It is a
+warning: publishing stays possible.
+
 ### 5.4 What is refused
 
 A shift (added by hand, edited or duplicated) is refused when:
@@ -215,7 +252,7 @@ A shift (added by hand, edited or duplicated) is refused when:
 | Reason | Message |
 |---|---|
 | The person already has a shift during those hours, at this or another restaurant | "… a déjà un shift sur ce créneau (à …)" |
-| The person already holds that post in that service that day, at any restaurant | "… a déjà un shift … ce jour-là" |
+| The person already has a post in that service (AM or PM) that day, at any restaurant | "… a déjà un poste sur le service … ce jour-là" |
 | The person has an arrêt maladie that day | "Impossible de planifier ce salarié : Arrêt maladie ce jour-là" |
 | The day is locked | "Le jj/mm/aaaa est verrouillé" |
 | The person is not assigned to this site | "Ce salarié n'est pas affecté à ce site" |
@@ -296,8 +333,7 @@ Rules:
   database: it refuses.
 - The tablet needs an internet connection.
 
-A PIN can only be set through the server by an administrator; no screen
-exists for it.
+The PIN is set by an administrator in the employee record (Comptes screen).
 
 ---
 
@@ -338,8 +374,9 @@ No match means "sans shift prévu".
 | Still at work (clocked in less than 16 hours ago, not out) | No end and no total yet |
 
 - Seconds are dropped: 09:00:59 counts as 09:00.
-- **Break**: the break set on the shift (20 minutes by default) is deducted
-  from every shift, whatever its length. On a coupure that is 20 minutes per
+- **Break**: the break set on the shift is deducted, whatever the shift's
+  length. It is 20 minutes by default, and 0 for a shift starting at 12:00 or
+  19:00 (which also has no meal). On a coupure that is 20 minutes per
   shift, 40 for the day. A clocked break does not change the deduction; it is
   flagged when it differs.
 - A coupure is recognised when the person has several shifts starting the
@@ -513,11 +550,10 @@ log because they are themselves the permanent record.
 ## 15. What is not built
 
 **Employees and structure**
-- Creating or editing an employee, their restaurants, posts or contract from a
-  screen. Employees exist only through the demo data.
+- Removing an employee, contract history, importing employees from a file.
 - The PayFit connection (employees, contracts, absences).
-- Setting tablet PINs, revoking a tablet, adding or recolouring a post: these
-  exist on the server but have no screen.
+- Revoking a tablet, adding or recolouring a post: these exist on the server
+  but have no screen.
 - Posts per restaurant: there is one list for the whole company.
 
 **Planning**
@@ -622,7 +658,9 @@ All under `/api`. "Session" means a logged-in account.
 | Value | Setting |
 |---|---|
 | Tolerance on a late clock-out | 10 minutes |
-| Break deducted per shift | 20 minutes, changeable per shift |
+| Break deducted per shift | 20 minutes; 0 for a start at 12:00 or 19:00; changeable per shift |
+| Value of an absence day | Weekly contract ÷ 5 |
+| Paid leave earned | 2.08 days a month (recorded; not used yet) |
 | "Still at work" after a clock-in | 16 hours |
 | Early clock-in attached to a shift | Up to 4 hours before |
 | Tablet returns to the start | After 30 seconds idle |

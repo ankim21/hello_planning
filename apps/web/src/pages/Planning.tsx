@@ -23,12 +23,15 @@ import {
   api,
   type Department,
   type LockStatus,
+  type MissingPost,
   type PlanningAlert,
   type PlanningRow,
   type PlanningWeek,
+  type PopularShift,
   type ShiftCard,
 } from '../api.ts'
 import { CardEditor, type EditorTarget } from './CardEditor.tsx'
+import { NeedsDialog } from './NeedsDialog.tsx'
 import {
   addDays,
   addMonths,
@@ -92,6 +95,9 @@ function Board({ siteId }: { siteId: string }) {
   const [editing, setEditing] = useState<EditorTarget | null>(null)
   const [lockMenu, setLockMenu] = useState<string | null>(null)
   const [dragged, setDragged] = useState<ShiftCard | null>(null)
+  // The shifts this restaurant plans most often, offered as templates.
+  const [popular, setPopular] = useState<PopularShift[]>([])
+  const [needsOpen, setNeedsOpen] = useState(false)
   // While dragging: the cell under the pointer, and whether the pointer has
   // left the planning (where dropping deletes the shift).
   const [hoverCell, setHoverCell] = useState<string | null>(null)
@@ -114,6 +120,13 @@ function Board({ siteId }: { siteId: string }) {
   }, [siteId, from, length])
 
   useEffect(load, [load])
+
+  const loadPopular = useCallback(() => {
+    api<PopularShift[]>(`/sites/${siteId}/popular-shifts`)
+      .then(setPopular)
+      .catch(() => setPopular([]))
+  }, [siteId])
+  useEffect(loadPopular, [loadPopular])
 
   const move = (direction: 1 | -1) =>
     setAnchor(month ? addMonths(anchor, direction) : addDays(anchor, 7 * direction))
@@ -333,13 +346,17 @@ function Board({ siteId }: { siteId: string }) {
         <strong>{absence.typeName.slice(0, 5)}.</strong>
       ) : (
         <>
-          <strong>
-            {absence.dayPart === 'CUSTOM'
-              ? `${absence.startTime} – ${absence.endTime}`
-              : absence.dayPart === 'HALF_DAY'
-                ? 'Demi-journée'
-                : 'Journée'}
-          </strong>
+          <span className="row">
+            <strong>
+              {absence.dayPart === 'CUSTOM'
+                ? `${absence.startTime} – ${absence.endTime}`
+                : absence.dayPart === 'HALF_DAY'
+                  ? 'Demi-journée'
+                  : 'Journée'}
+            </strong>
+            {/* A fifth of the contract: 7h on 35 hours, 7.8h on 39. */}
+            {absence.dayMinutes !== null && <span>{decimalHours(absence.dayMinutes)}</span>}
+          </span>
           {absence.typeName}
         </>
       )}
@@ -428,11 +445,14 @@ function Board({ siteId }: { siteId: string }) {
         {/* Kitchen and salle are published separately, week by week: the
             staff see nothing of a department before it is published. */}
         {!month && <WeekAlerts rows={data.rows} />}
+        {!month && <MissingPosts missing={data.missing} />}
+        {!month && rights.needs && <button onClick={() => setNeedsOpen(true)}>Besoins</button>}
 
         {!month && data.publication && (
           <Publication
             publication={data.publication}
             mayPublish={rights.publish}
+            missing={data.missing}
             onChange={setPublished}
           />
         )}
@@ -625,8 +645,15 @@ function Board({ siteId }: { siteId: string }) {
                       </>,
                     ),
                   )}
-                  <td className="total">
-                    <strong>{hours(row.plannedMinutes)}</strong>
+                  <td
+                    className="total"
+                    title={
+                      row.absenceMinutes > 0
+                        ? `${hours(row.plannedMinutes)} de shifts + ${hours(row.absenceMinutes)} de congé payé`
+                        : undefined
+                    }
+                  >
+                    <strong>{hours(row.plannedMinutes + row.absenceMinutes)}</strong>
                     {month ? (
                       <span className="muted">
                         {row.shifts.length} shift{row.shifts.length > 1 ? 's' : ''}
@@ -689,10 +716,25 @@ function Board({ siteId }: { siteId: string }) {
           target={editing}
           posts={data.posts}
           employees={data.rows.map((row) => row.employee)}
+          popular={popular}
           absenceTypes={data.absenceTypes}
           onClose={() => setEditing(null)}
           onSaved={() => {
             setEditing(null)
+            load()
+            loadPopular()
+          }}
+        />
+      )}
+
+      {needsOpen && (
+        <NeedsDialog
+          siteId={siteId}
+          siteName={data.site.name}
+          posts={data.posts}
+          onClose={() => setNeedsOpen(false)}
+          onSaved={() => {
+            setNeedsOpen(false)
             load()
           }}
         />
@@ -712,10 +754,12 @@ const DEPARTMENT_NAMES: Record<Department, string> = { KITCHEN: 'Cuisine', SALLE
 function Publication({
   publication,
   mayPublish,
+  missing,
   onChange,
 }: {
   publication: Record<Department, string | null>
   mayPublish: Department[]
+  missing: MissingPost[]
   onChange: (departments: Department[], published: boolean) => void
 }) {
   const [open, setOpen] = useState(false)
@@ -757,6 +801,16 @@ function Publication({
           <p className="muted">
             Les salariés ne voient un shift qu'une fois sa partie du planning publiée.
           </p>
+          {/* A warning, not a block: publishing stays possible. */}
+          {missing.length > 0 && (
+            <div className="publish-warning">
+              <strong>
+                ⚠ {missing.length} poste{missing.length > 1 ? 's' : ''} manquant
+                {missing.length > 1 ? 's' : ''} par rapport aux besoins
+              </strong>
+              <MissingList missing={missing} />
+            </div>
+          )}
           {departments.map((department) => {
             const name = DEPARTMENT_NAMES[department]
             const at = publication[department]
@@ -814,6 +868,44 @@ function alertText(alert: PlanningAlert): string {
     case 'SHIFT_ON_ABSENCE':
       return `Shift planifié le ${day} malgré : ${alert.detail}`
   }
+}
+
+/** The missing posts, grouped by day: "sam. 21 nov. · soir — Bar 0/1". */
+function MissingList({ missing }: { missing: MissingPost[] }) {
+  const days = [...new Set(missing.map((line) => line.date))]
+  return (
+    <ul className="missing-list">
+      {days.map((date) => (
+        <li key={date}>
+          <strong>{dayLabel(date, { weekday: 'short', day: 'numeric', month: 'short' })}</strong>
+          {(['AM', 'PM'] as const).map((service) => {
+            const lines = missing.filter((line) => line.date === date && line.service === service)
+            if (lines.length === 0) return null
+            return (
+              <span key={service}>
+                {' '}
+                · {service === 'AM' ? 'midi' : 'soir'} :{' '}
+                {lines.map((line) => `${line.label} ${line.planned}/${line.needed}`).join(', ')}
+              </span>
+            )
+          })}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+/** Posts short of the restaurant's needs, behind one chip in the toolbar. */
+function MissingPosts({ missing }: { missing: MissingPost[] }) {
+  if (missing.length === 0) return null
+  return (
+    <AlertPop
+      label={`⚠ ${missing.length} poste${missing.length > 1 ? 's' : ''} manquant${missing.length > 1 ? 's' : ''}`}
+      name="Postes manquants par rapport aux besoins"
+    >
+      <MissingList missing={missing} />
+    </AlertPop>
+  )
 }
 
 /** All the week's alerts behind one chip in the toolbar. */

@@ -192,7 +192,9 @@ function NextShift({
 
 /** Hours planned against the contract, and the split between restaurants. */
 function Summary({ week }: { week: Week }) {
-  const { totalMinutes, contractMinutes } = week
+  const { contractMinutes, absenceMinutes } = week
+  // Paid leave counts with the shifts against the contract.
+  const totalMinutes = week.totalMinutes + absenceMinutes
   const ratio = contractMinutes ? Math.min(1, totalMinutes / contractMinutes) : 0
   const shifts = week.days.reduce((count, day) => count + day.shifts.length, 0)
   return (
@@ -201,6 +203,9 @@ function Summary({ week }: { week: Week }) {
         <span>
           <strong>{hours(totalMinutes)}</strong> planifiées
           {contractMinutes !== null && <span className="muted"> sur {hours(contractMinutes)}</span>}
+          {absenceMinutes > 0 && (
+            <span className="muted"> · dont {hours(absenceMinutes)} de congé payé</span>
+          )}
         </span>
         <span className="muted">
           {shifts} shift{shifts > 1 ? 's' : ''}
@@ -257,6 +262,7 @@ function Day({
                 : absence.dayPart === 'HALF_DAY'
                   ? 'Demi-journée'
                   : 'Toute la journée'}
+              {absence.dayMinutes !== null && ` · ${hours(absence.dayMinutes)}`}
             </span>
           </div>
         ))}

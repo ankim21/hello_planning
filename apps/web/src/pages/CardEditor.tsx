@@ -3,8 +3,16 @@
  * Two tabs: Shift and Absence. Saving on the other tab turns the card into
  * the other kind (the shift is removed and an absence created, or the reverse).
  */
+import { shiftDefaults } from '@skellobis/labor-rules'
 import { type CSSProperties, useState } from 'react'
-import { type AbsenceCard, api, type Person, type PlanningWeek, type ShiftCard } from '../api.ts'
+import {
+  type AbsenceCard,
+  api,
+  type Person,
+  type PlanningWeek,
+  type PopularShift,
+  type ShiftCard,
+} from '../api.ts'
 import { capitalise, dayLabel, hours, minutesBetween } from './dates.ts'
 
 export type EditorTarget =
@@ -19,6 +27,8 @@ interface Props {
   target: EditorTarget
   posts: PlanningWeek['posts']
   employees: Person[]
+  /** The shifts this restaurant plans most often, as one-click templates. */
+  popular: PopularShift[]
   absenceTypes: PlanningWeek['absenceTypes']
   onClose: () => void
   onSaved: () => void
@@ -29,6 +39,7 @@ export function CardEditor({
   target,
   posts,
   employees,
+  popular,
   absenceTypes,
   onClose,
   onSaved,
@@ -49,10 +60,23 @@ export function CardEditor({
   // Shift tab
   const [start, setStart] = useState(shift?.start ?? (preset?.service === 'PM' ? '18:00' : '10:00'))
   const [end, setEnd] = useState(shift?.end ?? (preset?.service === 'PM' ? '23:00' : '15:00'))
-  const [breakMinutes, setBreakMinutes] = useState(shift?.breakMinutes ?? 20)
+  // A new shift takes the company default for its start time: 20 minutes and
+  // one meal, or none of either for a start at 12:00 or 19:00.
+  const initialStart = shift?.start ?? (preset?.service === 'PM' ? '18:00' : '10:00')
+  const [breakMinutes, setBreakMinutes] = useState(
+    shift?.breakMinutes ?? shiftDefaults(initialStart).breakMinutes,
+  )
   const [postId, setPostId] = useState(shift?.postId ?? preset?.postId ?? posts[0]?.id ?? '')
   const [service, setService] = useState<'AM' | 'PM'>(shift?.service ?? preset?.service ?? 'AM')
-  const [meals, setMeals] = useState(shift?.meals ?? 1)
+  const [meals, setMeals] = useState(shift?.meals ?? shiftDefaults(initialStart).meals)
+
+  /** Changing the start re-applies the default break and meals for that time. */
+  const changeStart = (time: string) => {
+    setStart(time)
+    const defaults = shiftDefaults(time)
+    setBreakMinutes(defaults.breakMinutes)
+    setMeals(defaults.meals)
+  }
   const [shiftNote, setShiftNote] = useState(shift?.note ?? '')
 
   // Absence tab
@@ -65,6 +89,24 @@ export function CardEditor({
   const [startTime, setStartTime] = useState(absence?.startTime ?? '10:00')
   const [endTime, setEndTime] = useState(absence?.endTime ?? '15:00')
   const [absenceNote, setAbsenceNote] = useState(absence?.note ?? '')
+
+  /** Fills the form from a popular shift; everything stays editable. */
+  const useTemplate = (template: PopularShift) => {
+    setStart(template.start)
+    setEnd(template.end)
+    setBreakMinutes(template.breakMinutes)
+    setMeals(template.meals)
+    setPostId(template.postId)
+    setService(template.service)
+  }
+  // Opened from a post's row: that post's usual shifts come first.
+  const templates = [...popular]
+    .sort(
+      (a, b) =>
+        Number(b.postId === preset?.postId && b.service === preset?.service) -
+        Number(a.postId === preset?.postId && a.service === preset?.service),
+    )
+    .slice(0, 6)
 
   const post = posts.find((candidate) => candidate.id === postId)
   const person = employees.find((candidate) => candidate.id === employeeId)
@@ -181,10 +223,30 @@ export function CardEditor({
 
         {tab === 'shift' ? (
           <div className="stack dialog-body">
+            {templates.length > 0 && (
+              <div className="templates">
+                <span className="muted">Shifts fréquents</span>
+                {templates.map((template) => (
+                  <button
+                    key={[template.postId, template.service, template.start, template.end, template.breakMinutes].join('|')}
+                    type="button"
+                    className="template"
+                    style={{ '--post': template.color } as CSSProperties}
+                    title={`Utilisé ${template.uses} fois · pause ${template.breakMinutes} min · ${template.meals} repas`}
+                    onClick={() => useTemplate(template)}
+                  >
+                    <strong>
+                      {template.start} – {template.end}
+                    </strong>{' '}
+                    {template.postName} {template.service}
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="fields">
               <label>
                 Début
-                <TimePicker label="Heure de début" value={start} onChange={setStart} />
+                <TimePicker label="Heure de début" value={start} onChange={changeStart} />
               </label>
               <label>
                 Fin

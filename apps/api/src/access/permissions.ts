@@ -15,6 +15,7 @@ export type Action =
   | 'shift.read'
   | 'shift.write'
   | 'planning.publish'
+  | 'needs.write'
   | 'absence.write'
   | 'day.lock'
   | 'day.payrollLock'
@@ -61,6 +62,8 @@ const ROLES_ALLOWED: Record<Action, Role[]> = {
   // Publishing makes a week visible to the staff. The head chef publishes
   // the kitchen only (see DEPARTMENT_LIMIT); the director either department.
   'planning.publish': ['HEAD_CHEF', 'SITE_DIRECTOR', 'MULTI_SITE_MANAGER', 'ADMIN'],
+  // The restaurant's staffing needs: the site director's rule.
+  'needs.write': ['SITE_DIRECTOR', 'MULTI_SITE_MANAGER', 'ADMIN'],
   'absence.write': [
     'HEAD_CHEF',
     'SITE_DIRECTOR',

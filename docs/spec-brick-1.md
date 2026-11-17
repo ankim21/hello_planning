@@ -116,11 +116,21 @@ The lab is left out of brick 1.
 | UI-8 | No side margins on the planning and Badgeuse screens | Confirmed |
 | PLN-41 | A shift with a note shows a small mark on its card, and the note appears when hovering the card | Confirmed |
 | PLN-37 | A shift is refused when the person already has one during those hours, whether it is added by hand, edited or duplicated by dragging, and across every restaurant they work at | Confirmed |
-| PLN-38 | A person cannot have two shifts on the same post and the same service (AM / PM) on the same day, across their restaurants | Confirmed |
+| PLN-38 | Superseded by PLN-56: a person cannot have two shifts in the same service on the same day, whatever the posts | Confirmed |
 | PLN-39 | Two different people may hold the same post in the same service | Confirmed |
 | PLN-29 | Drag-to-duplicate works with a mouse; touch screens are not needed | Confirmed |
 | PLN-25 | Whether an absence adds hours to the weekly counter depends on its type | Confirmed |
-| PLN-26 | Which absence types count, and how many hours a whole day and a half day are worth | Open |
+| PLN-26 | A whole day of absence (repos, congé payé…) is worth a fifth of the weekly contract: 7h on 35 hours, 7.8h on 39; a half day is half of it. This is because everyone earns 2.08 days of paid leave a month whatever their hours | Confirmed 2026-11-17 |
+| PLN-50 | The value is shown on the absence card. A day of congé payé adds it to the weekly counter, with at most five days counted per week (a full week of leave = one week of contract) | Confirmed for congé payé; the five-day limit is Proposed |
+| PLN-53 | Which other absence types add their value to the counter (RTT, récupération, maternité…) | Open |
+| PLN-54 | Each restaurant sets its general needs for the week: for each day and service, how many people on each post, and how many in total in the salle and in the kitchen | Confirmed 2026-11-17 |
+| PLN-55 | The planning warns, day by day, about posts short of the needs, and again in the publication menu before publishing. It warns; it does not block | Confirmed |
+| PLN-56 | A person already on a post in a service (AM or PM) on a day cannot be given another post in that service, at any restaurant | Confirmed 2026-11-17 |
+| PLN-57 | Popular shifts: the shifts a restaurant plans most often are offered in the editor as one-click templates | Confirmed |
+| PLN-58 | Popular shifts are worked out automatically from the last two months (used at least twice, the twelve most used), not saved by hand | Proposed |
+| PLN-59 | Needs are set by the site director or multi-site manager | Proposed |
+| PLN-51 | A shift starting at 12:00 or at 19:00 has no break and no meal (0 minutes, 0 meal) | Confirmed 2026-11-17 |
+| PLN-52 | PLN-51 applies to those exact start times; the planner can still change the break and meals of a shift | Proposed |
 | PLN-10 | Forfait jours managers on the planning | Open |
 
 ### 3.4 Time clock (tablet)
@@ -141,7 +151,7 @@ except:
 
 | ID | Requirement | Status |
 |---|---|---|
-| HRS-1 | A 20-minute break is deducted automatically on every shift, whatever its length | Confirmed |
+| HRS-1 | A 20-minute break is deducted automatically on every shift, whatever its length, except a shift starting at 12:00 or 19:00, which has none (PLN-51) | Confirmed |
 | HRS-4 | On a coupure the break is deducted from each of the two shifts: 40 minutes for the day | Confirmed |
 | HRS-2 | Forgotten clock-out on an unplanned shift: entry stays open and flagged | Proposed |
 | HRS-3 | When a break is both clocked and automatic, which one applies | Open |
@@ -235,7 +245,10 @@ except:
 | ACC-6 | An account is deactivated, never deleted; an administrator can reset a password | Proposed |
 | ACC-7 | The last active administrator cannot be removed or deactivated, and nobody deactivates their own account | Proposed |
 | ACC-8 | Everyone can change their own password (current, new of 10 characters or more, confirmation) | Proposed |
-| ACC-9 | Creating employees, and setting a tablet PIN, from a screen | Open: employees are to come from PayFit; PINs have no screen yet |
+| ACC-9 | From the Comptes screen an administrator creates and edits employee records: name, phone, main restaurant and others, posts, contract type, weekly hours or forfait jours, start date, tablet PIN | Confirmed (asked 2026-11-17); the list of fields is Proposed |
+| ACC-13 | An account with nobody behind it can be given an employee record, which gives it Ma semaine, Restaurant and Congés | Confirmed |
+| ACC-14 | Employees can exist without an account; they are listed apart, on the planning but unable to log in | Proposed |
+| ACC-15 | Editing a record changes the current contract; contract history, deactivating an employee, and import from PayFit or a file | Open |
 
 ### 3.9c Planning alerts
 | ID | Requirement | Status |

@@ -73,10 +73,15 @@ export class AccountsService {
 
   /** What the screen needs to offer: the sites, and employees with no login yet. */
   async options() {
-    const [sites, employees] = await Promise.all([
+    const [sites, posts, employees] = await Promise.all([
       this.prisma.site.findMany({
-        select: { id: true, name: true },
+        select: { id: true, name: true, type: true },
         orderBy: { name: 'asc' },
+      }),
+      this.prisma.post.findMany({
+        where: { isActive: true },
+        select: { id: true, name: true, department: true, color: true },
+        orderBy: [{ department: 'desc' }, { name: 'asc' }],
       }),
       this.prisma.employee.findMany({
         where: { isActive: true, user: null },
@@ -84,7 +89,7 @@ export class AccountsService {
         orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
       }),
     ]);
-    return { sites, employeesWithoutAccount: employees };
+    return { sites, posts, employeesWithoutAccount: employees };
   }
 
   /** Creates a login and invites the person by e-mail to choose a password. */

@@ -9,8 +9,11 @@ import {
   localDate,
   localTime,
   mondayOf,
+  absenceDayMinutes,
+  countedAbsenceMinutes,
   plannedMinutes,
   planningAlerts,
+  shiftDefaults,
   shiftInstants,
   zonedDateTime,
 } from '@skellobis/labor-rules';
@@ -32,8 +35,9 @@ export interface ShiftInput {
   date: string; // YYYY-MM-DD
   start: string; // HH:MM
   end: string; // HH:MM, next day when at or before start
-  breakMinutes: number;
-  meals: number;
+  /** Absent: the company default for that start time. */
+  breakMinutes?: number;
+  meals?: number;
   note?: string;
 }
 
@@ -80,6 +84,7 @@ export class PlanningService {
         can(user.grants, 'day.payrollLock', siteId),
       // The departments this person may publish: kitchen for a head chef,
       // both for a site director.
+      needs: can(user.grants, 'needs.write', siteId),
       publish: DEPARTMENTS.filter((department) =>
         can(user.grants, 'planning.publish', siteId, department),
       ),
@@ -182,10 +187,29 @@ export class PlanningService {
       minutes: plannedMinutes(shift.startsAt, shift.endsAt, shift.breakMinutes),
     }));
 
+    /** Hours that this person's counting absences add over the period. */
+    const counted = (own: typeof absences, contractMinutes: number | null) =>
+      countedAbsenceMinutes(
+        dates,
+        own
+          .filter((absence) => absence.type.countsInCounter)
+          .map((absence) => ({
+            startDate: fromDbDate(absence.startDate),
+            endDate: fromDbDate(absence.endDate),
+            dayMinutes: absenceDayMinutes(
+              contractMinutes,
+              absence.dayPart,
+              absence.startTime,
+              absence.endTime,
+            ),
+          })),
+      );
+
     const rows = employees.map((employee) => {
       const contract = employee.contracts[0];
       const own = shiftCards.filter((card) => card.employeeId === employee.id);
       const planned = own.reduce((sum, card) => sum + card.minutes, 0);
+      const ownAbsences = absences.filter((absence) => absence.employeeId === employee.id);
       const contractMinutes =
         contract?.weeklyHours != null
           ? Math.round(Number(contract.weeklyHours) * 60)
@@ -198,16 +222,15 @@ export class PlanningService {
         },
         contractMinutes,
         plannedMinutes: planned,
-        // Only shifts count for now; how absences count is an open question.
+        // Paid leave counts as hours: a day is worth a fifth of the contract.
+        absenceMinutes: counted(ownAbsences, contractMinutes),
         // The contract is weekly, so the difference only makes sense for a week.
         differenceMinutes:
           contractMinutes === null || length !== 7
             ? null
-            : planned - contractMinutes,
+            : planned + counted(ownAbsences, contractMinutes) - contractMinutes,
         shifts: own,
-        absences: absences
-          .filter((absence) => absence.employeeId === employee.id)
-          .map((absence) => ({
+        absences: ownAbsences.map((absence) => ({
             id: absence.id,
             employeeId: absence.employeeId,
             absenceTypeId: absence.absenceTypeId,
@@ -218,6 +241,13 @@ export class PlanningService {
             startTime: absence.startTime,
             endTime: absence.endTime,
             note: absence.note,
+            // What one day of it is worth: a fifth of the weekly contract.
+            dayMinutes: absenceDayMinutes(
+              contractMinutes,
+              absence.dayPart,
+              absence.startTime,
+              absence.endTime,
+            ),
           })),
         alerts: withAlerts
           ? planningAlerts(
@@ -265,9 +295,14 @@ export class PlanningService {
       };
     });
 
+    // Posts the restaurant's general rule asks for and the planning lacks,
+    // day by day. For the people who plan, on the week view.
+    const missing = withAlerts ? await this.missingPosts(siteId, dates, shiftCards) : [];
+
     return {
       site: { id: site.id, name: site.name },
       rights,
+      missing,
       publication,
       days,
       rows,
@@ -275,6 +310,149 @@ export class PlanningService {
       posts,
       absenceTypes: absenceTypes.map(({ id, name, category }) => ({ id, name, category })),
     };
+  }
+
+  // ───────────── Staffing needs ─────────────
+
+  needs(siteId: string) {
+    return this.prisma.staffingNeed.findMany({
+      where: { siteId },
+      select: { weekday: true, service: true, postId: true, department: true, count: true },
+    });
+  }
+
+  /** Replaces the restaurant's whole rule with the grid sent by the screen. */
+  async setNeeds(
+    user: SessionUser,
+    siteId: string,
+    needs: {
+      weekday: number;
+      service: 'AM' | 'PM';
+      postId: string | null;
+      department: Department | null;
+      count: number;
+    }[],
+  ) {
+    await this.siteOrThrow(siteId);
+    this.access.assert(user, 'needs.write', siteId);
+    // A line is about one post, or about one department as a whole.
+    const lines = needs.filter(
+      (need) => need.count > 0 && (need.postId === null) !== (need.department === null),
+    );
+    await this.prisma.$transaction([
+      this.prisma.staffingNeed.deleteMany({ where: { siteId } }),
+      this.prisma.staffingNeed.createMany({
+        data: lines.map((need) => ({ ...need, siteId })),
+      }),
+    ]);
+    await this.audit.record({
+      actorUserId: user.id,
+      action: 'needs.set',
+      entity: 'Site',
+      entityId: siteId,
+      data: { lines: lines.length },
+    });
+    return { lines: lines.length };
+  }
+
+  /** Compares the rule with what is planned on each day of the period. */
+  private async missingPosts(
+    siteId: string,
+    dates: string[],
+    cards: { date: string; service: 'AM' | 'PM'; postId: string; employeeId: string }[],
+  ) {
+    const needs = await this.prisma.staffingNeed.findMany({
+      where: { siteId },
+      include: { post: true },
+    });
+    if (needs.length === 0) return [];
+    const posts = await this.prisma.post.findMany({ select: { id: true, department: true } });
+    const departmentOf = new Map(posts.map((post) => [post.id, post.department]));
+
+    const missing = [];
+    for (const date of dates) {
+      const weekday = (new Date(`${date}T00:00:00.000Z`).getUTCDay() + 6) % 7; // Monday = 0
+      for (const need of needs.filter((n) => n.weekday === weekday)) {
+        const people = new Set(
+          cards
+            .filter(
+              (card) =>
+                card.date === date &&
+                card.service === need.service &&
+                (need.postId
+                  ? card.postId === need.postId
+                  : departmentOf.get(card.postId) === need.department),
+            )
+            .map((card) => card.employeeId),
+        );
+        if (people.size < need.count) {
+          missing.push({
+            date,
+            service: need.service,
+            // A post by its name; a department as a total.
+            label: need.post?.name ?? (need.department === 'KITCHEN' ? 'Cuisine (total)' : 'Salle (total)'),
+            department: need.post?.department ?? need.department!,
+            needed: need.count,
+            planned: people.size,
+          });
+        }
+      }
+    }
+    return missing;
+  }
+
+  // ───────────── Popular shifts ─────────────
+
+  /**
+   * The shifts this restaurant plans most often over the last two months,
+   * offered as one-click templates when adding a shift.
+   */
+  async popularShifts(siteId: string) {
+    const site = await this.siteOrThrow(siteId);
+    const recent = await this.prisma.shift.findMany({
+      where: { siteId, startsAt: { gte: new Date(Date.now() - 60 * DAY) } },
+      include: { post: true },
+    });
+    const groups = new Map<
+      string,
+      {
+        postId: string;
+        postName: string;
+        color: string;
+        service: 'AM' | 'PM';
+        start: string;
+        end: string;
+        breakMinutes: number;
+        meals: number;
+        uses: number;
+      }
+    >();
+    for (const shift of recent) {
+      if (!shift.post.isActive) continue;
+      const start = localTime(shift.startsAt, site.timezone);
+      const end = localTime(shift.endsAt, site.timezone);
+      const key = [shift.postId, shift.service, start, end, shift.breakMinutes, shift.meals].join('|');
+      const group = groups.get(key);
+      if (group) group.uses++;
+      else {
+        groups.set(key, {
+          postId: shift.postId,
+          postName: shift.post.name,
+          color: shift.post.color,
+          service: shift.service,
+          start,
+          end,
+          breakMinutes: shift.breakMinutes,
+          meals: shift.meals,
+          uses: 1,
+        });
+      }
+    }
+    // Used at least twice, most used first.
+    return [...groups.values()]
+      .filter((group) => group.uses >= 2)
+      .sort((a, b) => b.uses - a.uses)
+      .slice(0, 12);
   }
 
   // ───────────── Publication ─────────────
@@ -465,8 +643,8 @@ export class PlanningService {
       site.timezone,
     );
 
-    // One person cannot be in two places, nor hold the same post twice in
-    // the same service. This is checked across every restaurant they work
+    // One person cannot be in two places, nor hold two posts in the same
+    // service. This is checked across every restaurant they work
     // at, for a shift added by hand, edited, or duplicated by dragging.
     const sameDays = await this.prisma.shift.findMany({
       where: {
@@ -484,13 +662,14 @@ export class PlanningService {
           `${other.employee.firstName} a déjà un shift sur ce créneau${elsewhere}`,
         );
       }
+      // One position per person per service: someone already on a post for
+      // the AM (or PM) service that day cannot be given another one.
       if (
-        other.postId === input.postId &&
         other.service === input.service &&
         localDate(other.startsAt, other.site.timezone) === input.date
       ) {
         throw new ConflictException(
-          `${other.employee.firstName} a déjà un shift ${other.post.name} ${other.service} ce jour-là${elsewhere}`,
+          `${other.employee.firstName} a déjà un poste sur le service ${other.service} ce jour-là : ${other.post.name}${elsewhere}`,
         );
       }
     }
@@ -500,8 +679,8 @@ export class PlanningService {
       service: input.service,
       startsAt,
       endsAt,
-      breakMinutes: input.breakMinutes,
-      meals: input.meals,
+      breakMinutes: input.breakMinutes ?? shiftDefaults(input.start).breakMinutes,
+      meals: input.meals ?? shiftDefaults(input.start).meals,
       note: input.note?.trim() || null,
     };
   }

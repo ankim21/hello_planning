@@ -1,6 +1,8 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import {
+  absenceDayMinutes,
   addDays,
+  countedAbsenceMinutes,
   localDate,
   localTime,
   mondayOf,
@@ -263,6 +265,8 @@ export class MeService {
 
     const shifts = mine.map(describe);
     const contract = employee.contracts[0];
+    const weeklyMinutes =
+      contract?.weeklyHours != null ? Math.round(Number(contract.weeklyHours) * 60) : null;
     const bySite = [...new Set(shifts.map((s) => s.site.id))].map((siteId) => {
       const there = shifts.filter((s) => s.site.id === siteId);
       return {
@@ -285,12 +289,29 @@ export class MeService {
             dayPart: a.dayPart,
             startTime: a.startTime,
             endTime: a.endTime,
+            dayMinutes: absenceDayMinutes(
+              weeklyMinutes,
+              a.dayPart,
+              a.startTime,
+              a.endTime,
+            ),
           })),
         requests: requests
           .filter((r) => fromDbDate(r.startDate) <= date && date <= fromDbDate(r.endDate))
           .map((r) => ({ id: r.id, typeName: r.type.name })),
       })),
       totalMinutes: shifts.reduce((sum, s) => sum + s.minutes, 0),
+      // Paid leave counts as hours: a day is worth a fifth of the contract.
+      absenceMinutes: countedAbsenceMinutes(
+        dates,
+        absences
+          .filter((a) => a.type.countsInCounter)
+          .map((a) => ({
+            startDate: fromDbDate(a.startDate),
+            endDate: fromDbDate(a.endDate),
+            dayMinutes: absenceDayMinutes(weeklyMinutes, a.dayPart, a.startTime, a.endTime),
+          })),
+      ),
       contractMinutes:
         contract?.weeklyHours != null
           ? Math.round(Number(contract.weeklyHours) * 60)

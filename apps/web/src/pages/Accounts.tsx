@@ -8,7 +8,8 @@
  * "Mon espace".
  */
 import { type FormEvent, useCallback, useEffect, useState } from 'react'
-import { type Account, type AccountOptions, api } from '../api.ts'
+import { type Account, type AccountOptions, api, type EmployeeRecord } from '../api.ts'
+import { EmployeeForm } from './EmployeeForm.tsx'
 import { ORGANISATION_ROLES, ROLE_HELP, ROLE_LABELS, SITE_ROLES } from './roles.ts'
 import { Shell } from './Shell.tsx'
 
@@ -27,6 +28,15 @@ function Content({ myId }: { myId: string }) {
   const [options, setOptions] = useState<AccountOptions | null>(null)
   const [search, setSearch] = useState('')
   const [creating, setCreating] = useState(false)
+  const [employees, setEmployees] = useState<EmployeeRecord[]>([])
+  // The employee form: for a new person, for an account with nobody behind
+  // it, or to change an existing record.
+  const [form, setForm] = useState<
+    | { kind: 'new' }
+    | { kind: 'forAccount'; account: Account }
+    | { kind: 'edit'; employee: EmployeeRecord }
+    | null
+  >(null)
   const [error, setError] = useState<string | null>(null)
   // What just happened to a password: a link was e-mailed, or (when e-mail
   // could not be sent) a temporary password to hand over, shown once.
@@ -37,6 +47,7 @@ function Content({ myId }: { myId: string }) {
       .then(setAccounts)
       .catch((caught) => setError((caught as Error).message))
     api<AccountOptions>('/accounts/options').then(setOptions).catch(() => undefined)
+    api<EmployeeRecord[]>('/employees').then(setEmployees).catch(() => undefined)
   }, [])
   useEffect(load, [load])
 
@@ -65,6 +76,7 @@ function Content({ myId }: { myId: string }) {
     return <main>{error && <p className="error">{error}</p>}</main>
   }
 
+  const withoutAccount = employees.filter((employee) => !employee.account)
   const wanted = search.trim().toLowerCase()
   const shown = accounts.filter((account) =>
     `${account.email} ${account.employee?.firstName ?? ''} ${account.employee?.lastName ?? ''}`
@@ -75,7 +87,7 @@ function Content({ myId }: { myId: string }) {
   return (
     <main>
       <div className="row toolbar">
-        <h1>Comptes et rôles</h1>
+        <h1>Comptes et salariés</h1>
         <span className="period">
           <input
             type="search"
@@ -84,6 +96,7 @@ function Content({ myId }: { myId: string }) {
             value={search}
             onChange={(event) => setSearch(event.target.value)}
           />
+          <button onClick={() => setForm({ kind: 'new' })}>Nouveau salarié</button>
           <button className="primary" onClick={() => setCreating(true)}>
             Créer un compte
           </button>
@@ -170,6 +183,22 @@ function Content({ myId }: { myId: string }) {
             />
 
             <div className="account-actions">
+              {/* The person behind the login: without one, the account has
+                  no planning, no restaurant and no leave of its own. */}
+              {account.employee ? (
+                <button
+                  onClick={() => {
+                    const record = employees.find((e) => e.id === account.employee!.id)
+                    if (record) setForm({ kind: 'edit', employee: record })
+                  }}
+                >
+                  Modifier la fiche salarié
+                </button>
+              ) : (
+                <button onClick={() => setForm({ kind: 'forAccount', account })}>
+                  Créer sa fiche salarié
+                </button>
+              )}
               <button onClick={() => resetPassword(account)}>Envoyer un lien de mot de passe</button>
               {account.id !== myId && (
                 <button
@@ -190,6 +219,48 @@ function Content({ myId }: { myId: string }) {
           </li>
         ))}
       </ul>
+
+      {withoutAccount.length > 0 && (
+        <section>
+          <h2 className="section">Salariés sans compte ({withoutAccount.length})</h2>
+          <p className="muted">
+            Ils apparaissent sur le planning mais ne peuvent pas se connecter. « Créer un compte »
+            permet de les rattacher à un e-mail.
+          </p>
+          <ul className="plain accounts">
+            {withoutAccount.map((employee) => (
+              <li key={employee.id} className="panel account">
+                <div className="row">
+                  <span className="account-who">
+                    <strong>
+                      {employee.firstName} {employee.lastName}
+                    </strong>
+                    <span className="muted">
+                      {employee.sites.map((site) => site.name).join(', ') || 'Aucun restaurant'}
+                    </span>
+                  </span>
+                  <button onClick={() => setForm({ kind: 'edit', employee })}>
+                    Modifier la fiche salarié
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {form && (
+        <EmployeeForm
+          options={options}
+          employee={form.kind === 'edit' ? form.employee : undefined}
+          forAccount={form.kind === 'forAccount' ? form.account : undefined}
+          onClose={() => setForm(null)}
+          onSaved={() => {
+            setForm(null)
+            load()
+          }}
+        />
+      )}
 
       {creating && (
         <CreateDialog
