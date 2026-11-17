@@ -77,6 +77,11 @@ async function main() {
       create: { name, department, color },
     });
   }
+  // The manager of a service is the person staff call at the last minute.
+  await prisma.post.updateMany({
+    where: { name: 'Manager' },
+    data: { isServiceLead: true },
+  });
 
   // Absence types, generated from docs/reference/absence-types.md.
   const absenceTypes: AbsenceTypeSeed[] = JSON.parse(

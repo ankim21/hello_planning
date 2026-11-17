@@ -14,7 +14,7 @@ import {
 } from '@skellobis/labor-rules';
 import { AccessService } from '../access/access.service.js';
 import { can } from '../access/permissions.js';
-import { canDecide } from '../leave/leave.rules.js';
+import { canSee } from '../leave/leave.rules.js';
 import type { SessionUser } from '../access/session.js';
 import { AuditService } from '../core/audit.service.js';
 import { PrismaService } from '../core/prisma.service.js';
@@ -46,6 +46,7 @@ export interface AbsenceInput {
 }
 
 /** Dates are stored without a time; this is how they travel to the database. */
+const DAY = 86_400_000;
 const toDbDate = (date: string) => new Date(`${date}T00:00:00.000Z`);
 const fromDbDate = (date: Date) => date.toISOString().slice(0, 10);
 
@@ -84,8 +85,6 @@ export class PlanningService {
     // A plain employee sees that a colleague is absent, not why: the reason
     // (an arrêt maladie, for example) is personal.
     const seesAbsenceTypes = can(user.grants, 'shift.read', siteId);
-    // Leave requests are for the people who decide them.
-    const seesRequests = canDecide(user.grants, { route: 'DIRECTOR', siteId });
     const dates = Array.from({ length }, (_, i) => addDays(monday, i));
     const last = dates[length - 1];
     const from = zonedDateTime(monday, '00:00', site.timezone);
@@ -203,7 +202,12 @@ export class PlanningService {
             note: absence.note,
           })),
         requests: pendingRequests
-          .filter((request) => seesRequests && request.employeeId === employee.id)
+          // Only for the people allowed to see that request.
+          .filter(
+            (request) =>
+              request.employeeId === employee.id &&
+              canSee(user.grants, { route: request.route, siteId }),
+          )
           .map((request) => ({
             id: request.id,
             typeName: request.type.name,
@@ -281,7 +285,7 @@ export class PlanningService {
     this.access.assert(user, 'shift.write', siteId, before.post.department);
     await this.assertDayOpen(siteId, localDate(before.startsAt, before.site.timezone));
 
-    const data = await this.checkShift(user, siteId, input);
+    const data = await this.checkShift(user, siteId, input, id);
     await this.prisma.shift.update({ where: { id }, data });
     await this.audit.record({
       actorUserId: user.id,
@@ -315,7 +319,12 @@ export class PlanningService {
   }
 
   /** Every rule a shift must pass before it is saved. */
-  private async checkShift(user: SessionUser, siteId: string, input: ShiftInput) {
+  private async checkShift(
+    user: SessionUser,
+    siteId: string,
+    input: ShiftInput,
+    excludeShiftId?: string, // the shift being edited, which may overlap itself
+  ) {
     const site = await this.siteOrThrow(siteId);
     const post = await this.prisma.post.findUnique({ where: { id: input.postId } });
     if (!post) throw new BadRequestException('Poste inconnu');
@@ -352,6 +361,36 @@ export class PlanningService {
       input.end,
       site.timezone,
     );
+
+    // One person cannot be in two places, nor hold the same post twice in
+    // the same service. This is checked across every restaurant they work
+    // at, for a shift added by hand, edited, or duplicated by dragging.
+    const sameDays = await this.prisma.shift.findMany({
+      where: {
+        employeeId: input.employeeId,
+        id: excludeShiftId ? { not: excludeShiftId } : undefined,
+        startsAt: { lt: new Date(endsAt.getTime() + DAY) },
+        endsAt: { gt: new Date(startsAt.getTime() - DAY) },
+      },
+      include: { employee: true, site: true, post: true },
+    });
+    for (const other of sameDays) {
+      const elsewhere = other.siteId === siteId ? '' : ` à ${other.site.name}`;
+      if (other.startsAt < endsAt && other.endsAt > startsAt) {
+        throw new ConflictException(
+          `${other.employee.firstName} a déjà un shift sur ce créneau${elsewhere}`,
+        );
+      }
+      if (
+        other.postId === input.postId &&
+        other.service === input.service &&
+        localDate(other.startsAt, other.site.timezone) === input.date
+      ) {
+        throw new ConflictException(
+          `${other.employee.firstName} a déjà un shift ${other.post.name} ${other.service} ce jour-là${elsewhere}`,
+        );
+      }
+    }
     return {
       employeeId: input.employeeId,
       postId: input.postId,

@@ -74,7 +74,7 @@ The lab is left out of brick 1.
 | PLN-32 | A published week shows changes made afterwards immediately; it can be unpublished | Proposed |
 | PLN-33 | Telling employees that a week was published or changed (push notification) | Open |
 | PLN-2 | Alerts follow IDCC 1979 (HCR); exact list to come | Open |
-| PLN-3 | All alerts warn only and never block publication | Confirmed |
+| PLN-3 | All alerts warn only and never block publication. Double-booking a person is not an alert: it is refused (PLN-37) | Confirmed |
 | PLN-4 | An employee cannot be planned during an arrêt maladie; this blocks | Confirmed |
 | PLN-5 | A shift carries an employee, a post, a start, an end; a coupure is two services on the same day | Proposed |
 | PLN-6 | Publishing makes the week visible to employees and notifies them; later changes notify only those affected | Proposed |
@@ -102,6 +102,9 @@ The lab is left out of brick 1.
 | UI-5 | Times are typed in 24-hour format (16:30), whatever the language of the computer | Proposed |
 | PLN-27 | A second view of the week by post: one row per post and service, cards showing the employee, a recap per cell (people and hours) and a total per row | Confirmed |
 | PLN-28 | Dragging a shift onto another cell duplicates it there (other day, other employee, or other post in the view by post) | Confirmed |
+| PLN-37 | A shift is refused when the person already has one during those hours, whether it is added by hand, edited or duplicated by dragging, and across every restaurant they work at | Confirmed |
+| PLN-38 | A person cannot have two shifts on the same post and the same service (AM / PM) on the same day, across their restaurants | Confirmed |
+| PLN-39 | Two different people may hold the same post in the same service | Confirmed |
 | PLN-29 | Drag-to-duplicate works with a mouse; touch screens are not needed | Confirmed |
 | PLN-25 | Whether an absence adds hours to the weekly counter depends on its type | Confirmed |
 | PLN-26 | Which absence types count, and how many hours a whole day and a half day are worth | Open |
@@ -154,9 +157,11 @@ except:
 | REQ-1 | Employees submit leave requests and shift-swap requests | Confirmed |
 | REQ-2 | Requests are visible to the employee and to the planner | Confirmed |
 | REQ-3 | Deciders as in section 2 | Confirmed |
-| REQ-9 | Leave requests of restaurant staff, kitchen included, are decided by the site director only. No first approval by the head chef (corrected 2026-11-16) | Confirmed |
+| REQ-9 | Leave of salle staff is decided by the site director; leave of kitchen staff by the head chef; the head chef's own request by the site director (multi-site director, 2026-11-17; replaces the two earlier versions) | Confirmed, except the head chef's own request (Proposed) |
 | REQ-22 | A site director's own leave request is decided by the multi-site manager (reconfirmed 2026-11-16) | Confirmed |
-| REQ-21 | Only the people who decide see the requests and the Demandes tab; head chefs and managers do not | Confirmed |
+| REQ-21 | The site director and the multi-site manager see every request of their restaurants, as an overview; the head chef sees kitchen requests only; managers see none | Confirmed for the multi-site manager; Proposed for the site director |
+| REQ-23 | The multi-site manager is notified each time someone requests leave | Confirmed; today she sees them in Demandes, no push or e-mail yet |
+| REQ-24 | Kitchen staff = every post held is a kitchen post; someone who also holds a salle post goes to the site director | Proposed |
 | REQ-4 | An approved leave appears on the planning as an absence | Proposed |
 | REQ-13 | A request still waiting appears on the planning as a dashed card | Proposed |
 | REQ-16 | Lab staff requests go to HR, like the office | Proposed |
@@ -192,10 +197,42 @@ except:
 | ME-7 | Profil organises the information by restaurant: one card per restaurant worked at, the main one first | Confirmed |
 | ME-8 | An employee has a list of restaurants and one main restaurant | Confirmed |
 | ME-9 | Congés: ask for days off and follow the answer | Confirmed |
+| ME-14 | Leave cannot be requested for the week in progress: the earliest day is the following Monday | Confirmed |
+| ME-15 | A shift is not cancelled from the app. For a problem the same day or the same week, the shift shows the contact of the person responsible for that service and tells the employee to call them | Confirmed |
+| ME-16 | The person to call is the manager of the service (the employee planned on the Manager post during it), for kitchen staff as well as salle | Confirmed |
+| ME-19 | If no manager is planned on that service, the site director is shown instead | Proposed |
+| ME-17 | Each employee can enter their own phone number in Profil; it is shown to colleagues only as the contact of a service | Proposed |
+| ME-18 | The next-week rule applies to every requestable absence type | Proposed |
 | ME-10 | Colleagues' absences are not shown on the personal side | Proposed |
 | ME-11 | Employees see a week only once it is published; before that they see nothing of it | Confirmed |
 | ME-12 | The profile sub-tabs (Dossier RH, Mes documents, Notifications, Synchroniser le calendrier, Mon mot de passe) | Open |
 | ME-13 | Leave balances on the Congés screen | Open (waiting on the counter rules) |
+
+### 3.10 Differences with the HR payroll spec (interviews of 15 Nov 2026)
+
+The HR document describes the same badge rules as section 5.2 of the
+architecture, with four differences. The code follows the owner's earlier
+answers until these are settled, because each one changes pay.
+
+| ID | Subject | Built today (owner's answers) | HR document | Status |
+|---|---|---|---|---|
+| HR-1 | Clock-out 11 minutes or more after the planned end | Only the minutes beyond the 10th count (14 late = 4, 16 late = 6) | The whole overrun counts (23:16 = 23:16) | Settled 2026-11-17: the built rule stands; the HR document is to be corrected |
+| HR-2 | Late clock-out on a coupure | Not counted before the break; at the end of the day the usual 10-minute tolerance applies | Same for the end before the break; the end of the day was an open question there | Settled 2026-11-17, code changed: the end of the evening service now counts past the 10th minute |
+| HR-3 | 20-minute break | Deducted from every shift, 40 minutes on a coupure | Required above a shift length, assumed 6 hours (OPEN-Q2) | Settled 2026-11-17: the built rule stands; the HR document is to be corrected |
+| HR-4 | Manager note NPT / NTT ("ne pas toucher") | Not built | Keeps the manager's selection and is never flagged | Open |
+
+Also in the HR document and not built: pay periods that end on a Sunday
+(about the 15th to the 15th), the end-of-period anomaly report with
+"favours employee / company", director scoring, the planning checks (two
+consecutive rest days, 46 hours a week, hours against contract, negative
+hours, roster hygiene), payroll variables, extras, payslip checks and SAV paie.
+
+### 3.11 Requested on 2026-11-17, waiting for details
+| ID | Requirement | Status |
+|---|---|---|
+| RPT-1 | A "Rapport" for the multi-site director: per employee, hours counter at the start of the period, hours per week, counter at the end, with exports | Open: counter rules and the content of the collapsed columns are unknown |
+| PLN-35 | "Formation" and "Visite médicale" on the planning | Open: as absence types, or as something else |
+| PLN-36 | Adding files | Open: to what, which files, who may see them |
 
 ## 4. What would close most of the open items
 

@@ -6,11 +6,11 @@ import { matchShift, nextActions, pairClockEvents } from './pairing.js';
 const t = (hhmm: string, day = 16) =>
   new Date(`2026-11-${day}T${hhmm}:00.000Z`);
 
-const shift = (start: string, end: string, isCoupure = false): PlannedShift => ({
+const shift = (start: string, end: string, endsBeforeBreak = false): PlannedShift => ({
   id: 'shift-1',
   start: t(start),
   end: t(end),
-  isCoupure,
+  endsBeforeBreak,
 });
 
 const pair = (clockIn: string, clockOut: string | null, breakMin = 0) => ({
@@ -57,13 +57,20 @@ describe('computeEntry — end of shift', () => {
     expect(entry.countedEnd).toEqual(t('15:04'));
   });
 
-  it('on a coupure a late clock-out never counts', () => {
+  it('before the break of a coupure a late clock-out never counts', () => {
     const entry = computeEntry(
       pair('10:00', '15:45'),
       shift('10:00', '15:00', true),
     );
     expect(entry.countedEnd).toEqual(t('15:00'));
     expect(entry.flags).toContain('LATE_DEPARTURE_NOT_COUNTED_COUPURE');
+  });
+
+  it('at the end of a coupure day the usual tolerance applies', () => {
+    // The evening service of a coupure: 16 minutes late pays 6.
+    const evening = shift('18:00', '23:00', false);
+    expect(computeEntry(pair('18:00', '23:16'), evening).countedEnd).toEqual(t('23:06'));
+    expect(computeEntry(pair('18:00', '23:09'), evening).countedEnd).toEqual(t('23:00'));
   });
 
   it('a forgotten clock-out falls back to the planned end, flagged', () => {

@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Put, Query, UseGuards } from '@nestjs/common';
 import { z } from 'zod';
 import { SessionGuard } from '../access/session.guard.js';
 import { CurrentUser, type SessionUser } from '../access/session.js';
@@ -9,6 +9,15 @@ const weekSchema = z.object({
 });
 type WeekDto = z.infer<typeof weekSchema>;
 
+// Digits, spaces, dots, dashes, an optional leading +. Empty removes it.
+const phoneSchema = z.object({
+  phone: z
+    .string()
+    .trim()
+    .regex(/^\+?[\d .-]{6,20}$/, 'Numéro de téléphone invalide')
+    .nullable(),
+});
+
 /** "Mon espace": every call here is about the logged-in person only. */
 @Controller('me')
 @UseGuards(SessionGuard)
@@ -18,6 +27,14 @@ export class MeController {
   @Get()
   overview(@CurrentUser() user: SessionUser) {
     return this.me.overview(user);
+  }
+
+  @Put('phone')
+  setPhone(
+    @CurrentUser() user: SessionUser,
+    @Body({ schema: phoneSchema }) { phone }: z.infer<typeof phoneSchema>,
+  ) {
+    return this.me.setPhone(user, phone);
   }
 
   @Get('week')

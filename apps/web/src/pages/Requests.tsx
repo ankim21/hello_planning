@@ -1,7 +1,7 @@
 /**
- * Demandes: the leave requests this person decides. Only the people who
- * decide (site directors, and HR or the multi-site manager for their own
- * cases) have this tab.
+ * Demandes: the leave requests this person decides or follows. The site
+ * director decides salle requests, the head chef kitchen ones; the site
+ * director and the multi-site manager see all of them, as an overview.
  */
 import { useCallback, useEffect, useState } from 'react'
 import { api, type InboxRequest } from '../api.ts'

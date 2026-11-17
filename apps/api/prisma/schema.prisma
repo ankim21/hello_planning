@@ -55,6 +55,9 @@ model Post {
   name       String         @unique
   department Department
   color      String         @default("#9ca3af") // card colour on the planning
+  // The person on this post runs the service: staff call them when they
+  // cannot come at the last minute. True for "Manager".
+  isServiceLead Boolean     @default(false)
   isActive   Boolean        @default(true)
   employees  EmployeePost[]
   shifts     Shift[]
@@ -69,6 +72,7 @@ model Employee {
   payfitId    String?          @unique // filled once the PayFit sync exists
   firstName   String
   lastName    String
+  phone       String? // shown to colleagues only as the contact of a service
   pinHash     String? // PIN for the tablet, never stored in clear
   isActive    Boolean          @default(true)
   user        User?
@@ -289,7 +293,8 @@ enum LeaveStatus {
 // Who takes the final decision. Worked out when the request is made
 // (src/leave/leave.rules.ts) and stored, so it can always be explained.
 enum LeaveRoute {
-  DIRECTOR // the site director
+  DIRECTOR // the site director: salle staff, and the head chef's own request
+  CHEF // the head chef: kitchen staff
   MULTI_SITE // the multi-site manager, for a site director's own request
   HR // office and lab staff
 }

@@ -11,6 +11,7 @@ export const STATUS_LABELS: Record<LeaveStatus, string> = {
 
 export const ROUTE_LABELS: Record<LeaveRequest['route'], string> = {
   DIRECTOR: 'le responsable de site',
+  CHEF: 'le chef de cuisine',
   MULTI_SITE: 'le responsable multisite',
   HR: 'les ressources humaines',
 }

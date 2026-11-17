@@ -41,10 +41,10 @@ export function Shell({ siteId, section = 'planning', children }: Props) {
   const navigate = useNavigate()
   const [sites, setSites] = useState<Site[] | null>(null)
   const [waiting, setWaiting] = useState(0)
-  // Only the people who decide leave requests have the Demandes tab.
+  // The people who decide leave requests, or keep an overview of them.
   const manages =
     me?.grants.some((grant) =>
-      ['SITE_DIRECTOR', 'MULTI_SITE_MANAGER', 'HR', 'ADMIN'].includes(grant.role),
+      ['HEAD_CHEF', 'SITE_DIRECTOR', 'MULTI_SITE_MANAGER', 'HR', 'ADMIN'].includes(grant.role),
     ) ?? false
 
   useEffect(() => {

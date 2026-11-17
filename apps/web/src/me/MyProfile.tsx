@@ -9,6 +9,51 @@ import { dayLabel, hours, mondayOf, today } from '../pages/dates.ts'
 import { MeShell } from './MeShell.tsx'
 import { Avatar, PinIcon, PostChip } from './parts.tsx'
 
+/**
+ * My phone number. Colleagues are given it only when I run a service
+ * (manager of the service, or site director), to call me if they cannot come.
+ */
+function PhoneField({ initial }: { initial: string | null }) {
+  const [phone, setPhone] = useState(initial ?? '')
+  const [saved, setSaved] = useState(initial ?? '')
+  const [error, setError] = useState<string | null>(null)
+
+  async function save() {
+    setError(null)
+    try {
+      await api('/me/phone', { method: 'PUT', body: { phone: phone.trim() || null } })
+      setSaved(phone.trim())
+    } catch (caught) {
+      setError((caught as Error).message)
+    }
+  }
+
+  return (
+    <section>
+      <h2 className="eyebrow">Mon téléphone</h2>
+      <div className="phone-field">
+        <input
+          type="tel"
+          inputMode="tel"
+          autoComplete="tel"
+          placeholder="+33 6 12 34 56 78"
+          aria-label="Mon numéro de téléphone"
+          value={phone}
+          onChange={(event) => setPhone(event.target.value)}
+        />
+        <button className="primary" disabled={phone.trim() === saved} onClick={save}>
+          Enregistrer
+        </button>
+      </div>
+      {error && <p className="error">{error}</p>}
+      <p className="muted phone-note">
+        Il n'est montré à vos collègues que lorsque vous êtes responsable d'un service, pour
+        qu'ils puissent vous appeler en cas d'empêchement.
+      </p>
+    </section>
+  )
+}
+
 const ROLE_LABELS: Record<string, string> = {
   HEAD_CHEF: 'Chef de cuisine',
   MANAGER: 'Manager',
@@ -66,6 +111,8 @@ function Content({ me }: { me: MeOverview }) {
           </div>
         </div>
       </section>
+
+      {employee && <PhoneField initial={employee.phone} />}
 
       {employee && (
         <>

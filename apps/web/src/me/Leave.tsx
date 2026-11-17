@@ -6,7 +6,7 @@ import { type FormEvent, useCallback, useEffect, useState } from 'react'
 import { Navigate } from 'react-router'
 import { api, type LeaveRequest } from '../api.ts'
 import { TIME, TimeField } from '../pages/CardEditor.tsx'
-import { today } from '../pages/dates.ts'
+import { dayLabel, nextMonday, today } from '../pages/dates.ts'
 import { periodLabel, ROUTE_LABELS, StatusBadge } from '../pages/leave.tsx'
 import { MeShell } from './MeShell.tsx'
 import { Empty } from './parts.tsx'
@@ -111,8 +111,10 @@ function Content() {
 function RequestSheet({ onClose, onSent }: { onClose: () => void; onSent: () => void }) {
   const [types, setTypes] = useState<{ id: string; name: string }[]>([])
   const [absenceTypeId, setAbsenceTypeId] = useState('')
-  const [startDate, setStartDate] = useState(today)
-  const [endDate, setEndDate] = useState(today)
+  // Leave is asked ahead: the earliest day is next Monday.
+  const earliest = nextMonday()
+  const [startDate, setStartDate] = useState(earliest)
+  const [endDate, setEndDate] = useState(earliest)
   const [dayPart, setDayPart] = useState<LeaveRequest['dayPart']>('FULL_DAY')
   const [startTime, setStartTime] = useState('10:00')
   const [endTime, setEndTime] = useState('15:00')
@@ -129,6 +131,7 @@ function RequestSheet({ onClose, onSent }: { onClose: () => void; onSent: () => 
   }, [])
 
   const oneDay = startDate === endDate
+  const tooEarly = startDate < earliest
   const timesValid = !oneDay || dayPart !== 'CUSTOM' || (TIME.test(startTime) && TIME.test(endTime))
 
   async function submit(event: FormEvent) {
@@ -171,6 +174,13 @@ function RequestSheet({ onClose, onSent }: { onClose: () => void; onSent: () => 
           </button>
         </div>
 
+        <p className="sheet-info">
+          Les congés se demandent à l'avance, au plus tôt à partir du{' '}
+          <strong>{dayLabel(earliest, { weekday: 'long', day: 'numeric', month: 'long' })}</strong>.
+          Pour un empêchement cette semaine, ouvrez votre shift dans « Ma semaine » : vous y
+          trouverez le numéro du responsable à appeler.
+        </p>
+
         <label>
           Type
           <select value={absenceTypeId} onChange={(e) => setAbsenceTypeId(e.target.value)}>
@@ -187,6 +197,7 @@ function RequestSheet({ onClose, onSent }: { onClose: () => void; onSent: () => 
             Du
             <input
               type="date"
+              min={earliest}
               value={startDate}
               onChange={(e) => {
                 setStartDate(e.target.value)
@@ -242,7 +253,7 @@ function RequestSheet({ onClose, onSent }: { onClose: () => void; onSent: () => 
         </label>
 
         {error && <p className="error">{error}</p>}
-        <button type="submit" className="primary wide-button" disabled={busy || !absenceTypeId || !timesValid}>
+        <button type="submit" className="primary wide-button" disabled={busy || !absenceTypeId || !timesValid || tooEarly}>
           Envoyer la demande
         </button>
       </form>

@@ -5,12 +5,12 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { addDays, zonedDateTime } from '@skellobis/labor-rules';
+import { addDays, localDate, mondayOf, zonedDateTime } from '@skellobis/labor-rules';
 import type { SessionUser } from '../access/session.js';
 import { AuditService } from '../core/audit.service.js';
 import { PrismaService } from '../core/prisma.service.js';
 import { PlanningService } from '../planning/planning.service.js';
-import { canDecide, routeFor } from './leave.rules.js';
+import { canDecide, canSee, routeFor } from './leave.rules.js';
 
 export interface LeaveInput {
   absenceTypeId: string;
@@ -69,8 +69,9 @@ export class LeaveService {
     const employee = await this.prisma.employee.findUniqueOrThrow({
       where: { id: user.employeeId },
       include: {
-        // The main site first: its director receives the request.
+        // The main site first: its managers receive the request.
         assignments: { include: { site: true }, orderBy: { isPrimary: 'desc' } },
+        posts: { include: { post: true } },
       },
     });
     const site = employee.assignments[0]?.site;
@@ -78,13 +79,25 @@ export class LeaveService {
       throw new BadRequestException("Vous n'êtes affecté à aucun site");
     }
 
+    // Days off are asked ahead: never for the week in progress. A problem
+    // this week goes through a phone call to the manager of the service.
+    const nextMonday = addDays(mondayOf(localDate(new Date(), site.timezone)), 7);
+    if (input.startDate < nextMonday) {
+      throw new BadRequestException(
+        'Les congés se demandent au plus tôt pour la semaine prochaine. Pour un empêchement cette semaine, appelez le responsable de votre service.',
+      );
+    }
+
+    const hasRoleHere = (role: string) =>
+      user.grants.some(
+        (grant) =>
+          grant.role === role && (grant.siteId === null || grant.siteId === site.id),
+      );
     const route = routeFor({
       siteType: site.type,
-      isSiteDirector: user.grants.some(
-        (grant) =>
-          grant.role === 'SITE_DIRECTOR' &&
-          (grant.siteId === null || grant.siteId === site.id),
-      ),
+      isSiteDirector: hasRoleHere('SITE_DIRECTOR'),
+      isHeadChef: hasRoleHere('HEAD_CHEF'),
+      postDepartments: employee.posts.map(({ post }) => post.department),
     });
 
     const custom = input.dayPart === 'CUSTOM';
@@ -144,8 +157,8 @@ export class LeaveService {
   // ───────────── Manager side ─────────────
 
   /**
-   * The requests this person decides. Nobody else sees them, apart from the
-   * employee who made the request.
+   * The requests this person may see: the ones they decide, plus, for a site
+   * director or multi-site manager, every request of their restaurants.
    */
   async inbox(user: SessionUser, onlyPending: boolean) {
     const allSites = user.grants.some((grant) => grant.siteId === null);
@@ -162,7 +175,7 @@ export class LeaveService {
 
     const visible = [];
     for (const request of requests) {
-      if (!canDecide(user.grants, request)) continue;
+      if (!canSee(user.grants, request)) continue;
       const pending = request.status === 'PENDING';
 
       // Shifts already planned over the period: the approver should know.
@@ -182,7 +195,10 @@ export class LeaveService {
         ...this.present(request),
         plannedShifts,
         // Nobody decides their own request.
-        canDecide: pending && request.employeeId !== user.employeeId,
+        canDecide:
+          pending &&
+          request.employeeId !== user.employeeId &&
+          canDecide(user.grants, request),
       });
     }
     return visible;

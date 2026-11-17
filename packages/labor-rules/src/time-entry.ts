@@ -23,8 +23,12 @@ export interface PlannedShift {
   id: string;
   start: Date;
   end: Date;
-  /** True when the employee has an AM and a PM shift on the same day. */
-  isCoupure: boolean;
+  /**
+   * True for the first service of a coupure: the shift is followed by a
+   * break and another shift the same day. Staff often forget to clock around
+   * the break, so the end of this shift follows the plan.
+   */
+  endsBeforeBreak: boolean;
   /** Break planned on this shift; the automatic break applies when absent. */
   breakMinutes?: number;
 }
@@ -44,7 +48,7 @@ export type Flag =
   | 'LATE_ARRIVAL'
   | 'EARLY_DEPARTURE'
   | 'LATE_DEPARTURE_COUNTED' // stayed beyond the grace period
-  | 'LATE_DEPARTURE_NOT_COUNTED_COUPURE' // stayed late, ignored because coupure
+  | 'LATE_DEPARTURE_NOT_COUNTED_COUPURE' // stayed late before the break of a coupure
   | 'CLOCKED_BREAK_DIFFERS'; // clocked a break that is not the automatic one
 
 export interface ComputedEntry {
@@ -112,8 +116,9 @@ export function computeEntry(
       const overrun = minutesBetween(shift.end, clockOut);
       if (overrun === 0) {
         countedEnd = shift.end;
-      } else if (shift.isCoupure) {
-        // On a coupure a late clock-out never counts.
+      } else if (shift.endsBeforeBreak) {
+        // Before the break of a coupure a late clock-out never counts. At
+        // the end of the day the usual tolerance applies, as on any shift.
         countedEnd = shift.end;
         flags.push('LATE_DEPARTURE_NOT_COUNTED_COUPURE');
       } else if (overrun <= rules.lateClockOutGraceMinutes) {

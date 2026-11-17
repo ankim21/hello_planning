@@ -23,6 +23,9 @@ export function mondayOf(day: string): string {
   return addDays(day, -weekday)
 }
 
+/** The first day leave can be asked for: the Monday after this week. */
+export const nextMonday = () => addDays(mondayOf(today()), 7)
+
 export const isMonday = (day: string) => toDate(day).getUTCDay() === 1
 
 export const firstOfMonth = (day: string) => `${day.slice(0, 7)}-01`

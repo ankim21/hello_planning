@@ -31,7 +31,7 @@ const FLAG_LABELS: Record<string, string> = {
   LATE_ARRIVAL: 'Arrivée en retard',
   EARLY_DEPARTURE: 'Départ anticipé',
   LATE_DEPARTURE_COUNTED: 'Départ tardif compté',
-  LATE_DEPARTURE_NOT_COUNTED_COUPURE: 'Départ tardif non compté (coupure)',
+  LATE_DEPARTURE_NOT_COUNTED_COUPURE: 'Départ tardif non compté (avant la coupure)',
   CLOCKED_BREAK_DIFFERS: 'Pause badgée différente',
 }
 

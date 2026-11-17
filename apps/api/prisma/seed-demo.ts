@@ -132,6 +132,13 @@ async function employeeLogins() {
     });
   }
   await secondRestaurant();
+  // Invented phone numbers, so the "call your manager" screen has something to show.
+  for (const [lastName, phone] of [
+    ['Directeur', '+33 6 00 00 00 01'],
+    ['Exemple', '+33 6 00 00 00 02'],
+  ]) {
+    await prisma.employee.updateMany({ where: { lastName, phone: null }, data: { phone } });
+  }
   // Two office accounts, not linked to an employee: the operations team sees
   // every site; the multi-site manager runs this one (and would run others).
   const site = await prisma.site.findUniqueOrThrow({ where: { name: SITE } });

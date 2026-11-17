@@ -18,6 +18,7 @@ function Content({ me }: { me: MeOverview }) {
   const [monday, setMonday] = useState(() => mondayOf(today()))
   const [week, setWeek] = useState<Week | null>(null)
   const [open, setOpen] = useState<string | null>(null) // the shift whose team is unfolded
+  const [problem, setProblem] = useState<MyShift | null>(null) // "I cannot come"
 
   useEffect(() => {
     api<Week>(`/me/week?from=${monday}`).then(setWeek)
@@ -30,7 +31,7 @@ function Content({ me }: { me: MeOverview }) {
     <div className="me-columns">
       <section className="me-side">
         <p className="hello">Bonjour {employee.firstName}</p>
-        <NextShift shift={week?.nextShift ?? null} loaded={week !== null} />
+        <NextShift shift={week?.nextShift ?? null} loaded={week !== null} onProblem={setProblem} />
       </section>
 
       <section>
@@ -61,18 +62,90 @@ function Content({ me }: { me: MeOverview }) {
                   showSite={severalSites}
                   open={open}
                   onToggle={(id) => setOpen(open === id ? null : id)}
+                  onProblem={setProblem}
                 />
               ))}
             </ol>
           </>
         )}
       </section>
+
+      {problem && <CallSheet shift={problem} onClose={() => setProblem(null)} />}
+    </div>
+  )
+}
+
+/**
+ * "I cannot come." A shift is not cancelled from the app: the employee phones
+ * the person running the service, whose number is given here.
+ */
+function CallSheet({ shift, onClose }: { shift: MyShift; onClose: () => void }) {
+  return (
+    <div className="sheet-overlay" onClick={onClose}>
+      <div
+        className="sheet"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Un empêchement"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="sheet-head">
+          <strong>Un empêchement ?</strong>
+          <button type="button" className="round" onClick={onClose} aria-label="Fermer">
+            ×
+          </button>
+        </div>
+        <p className="call-shift">
+          {capitalise(relativeDay(shift.date))} · {shift.start} – {shift.end} · {shift.site.name}
+        </p>
+        <p className="call-rule">
+          Un shift ne s'annule pas depuis l'application. <strong>Appelez directement</strong> le
+          responsable de ce service, le plus tôt possible.
+        </p>
+        {shift.whoToCall.length === 0 && (
+          <p className="unpublished-note">
+            Aucun responsable n'est renseigné pour ce service. Contactez votre restaurant.
+          </p>
+        )}
+        <ul className="call-list">
+          {shift.whoToCall.map((contact) => (
+            <li key={contact.id}>
+              <Avatar person={contact} size={44} />
+              <span className="call-who">
+                <strong>
+                  {contact.firstName} {contact.lastName}
+                </strong>
+                <span className="muted">{contact.role}</span>
+              </span>
+              {contact.phone ? (
+                <a className="call-button" href={`tel:${contact.phone.replace(/[^+\d]/g, '')}`}>
+                  Appeler
+                  <span>{contact.phone}</span>
+                </a>
+              ) : (
+                <span className="muted">Numéro non renseigné</span>
+              )}
+            </li>
+          ))}
+        </ul>
+        <p className="muted call-foot">
+          Pour des congés à partir de la semaine prochaine, utilisez l'onglet Congés.
+        </p>
+      </div>
     </div>
   )
 }
 
 /** The dark card at the top: when, where, as what, and with whom. */
-function NextShift({ shift, loaded }: { shift: MyShift | null; loaded: boolean }) {
+function NextShift({
+  shift,
+  loaded,
+  onProblem,
+}: {
+  shift: MyShift | null
+  loaded: boolean
+  onProblem: (shift: MyShift) => void
+}) {
   if (!loaded) return <div className="next-card placeholder" />
   if (!shift) {
     return (
@@ -100,6 +173,11 @@ function NextShift({ shift, loaded }: { shift: MyShift | null; loaded: boolean }
             <AvatarStack people={shift.coworkers} />
             <span>Avec {namesOf(shift.coworkers)}</span>
           </span>
+        )}
+        {shift.whoToCall.length > 0 && (
+          <button className="problem on-dark" onClick={() => onProblem(shift)}>
+            Un empêchement ?
+          </button>
         )}
       </div>
     </div>
@@ -145,11 +223,13 @@ function Day({
   showSite,
   open,
   onToggle,
+  onProblem,
 }: {
   day: MyDay
   showSite: boolean
   open: string | null
   onToggle: (shiftId: string) => void
+  onProblem: (shift: MyShift) => void
 }) {
   const isToday = day.date === today()
   const empty = day.shifts.length + day.absences.length + day.requests.length === 0
@@ -227,6 +307,12 @@ function Day({
                     </li>
                   )}
                 </ul>
+              )}
+              {/* Only on shifts of the week in progress that are still to come. */}
+              {shift.whoToCall.length > 0 && (
+                <button className="problem" onClick={() => onProblem(shift)}>
+                  Un empêchement ?
+                </button>
               )}
             </article>
           )

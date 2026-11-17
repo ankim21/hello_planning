@@ -226,7 +226,7 @@ export interface LeaveRequest {
   startTime: string | null
   endTime: string | null
   note: string | null
-  route: 'DIRECTOR' | 'MULTI_SITE' | 'HR'
+  route: 'DIRECTOR' | 'CHEF' | 'MULTI_SITE' | 'HR'
   status: LeaveStatus
   decisionNote: string | null
   createdAt: string
@@ -255,6 +255,7 @@ export interface MeOverview {
     id: string
     firstName: string
     lastName: string
+    phone: string | null
     contractMinutes: number | null
     forfaitJours: boolean
     sites: MySite[]
@@ -275,6 +276,11 @@ export interface MyShift {
   service: 'AM' | 'PM'
   color: string
   minutes: number
+  /**
+   * Who to phone if I cannot come: the manager of the service, or else the
+   * site director. Only filled for shifts of the week in progress.
+   */
+  whoToCall: (Person & { phone: string | null; role: string })[]
   coworkers: Coworker[]
 }
 export interface MyDay {

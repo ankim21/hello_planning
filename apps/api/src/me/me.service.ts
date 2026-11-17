@@ -3,6 +3,7 @@ import {
   addDays,
   localDate,
   localTime,
+  mondayOf,
   plannedMinutes,
   zonedDateTime,
 } from '@skellobis/labor-rules';
@@ -98,6 +99,7 @@ export class MeService {
       ...base,
       employee: {
         ...person(employee),
+        phone: employee.phone,
         contractMinutes:
           contract?.weeklyHours != null
             ? Math.round(Number(contract.weeklyHours) * 60)
@@ -197,6 +199,33 @@ export class MeService {
       : [];
     const publishedOthers = others.filter(shiftIsPublished);
 
+    // For a problem at the last minute, staff call the person running the
+    // service: the manager planned on it, or else the site director.
+    const directors = await this.siteDirectors([...new Set(toDescribe.map((s) => s.siteId))]);
+    const thisWeek = mondayOf(localDate(now, ZONE));
+    const whoToCall = (shift: (typeof mine)[number]) => {
+      // Only for shifts of the week in progress that are not over.
+      const day = localDate(shift.startsAt, shift.site.timezone);
+      if (mondayOf(day) !== thisWeek || shift.endsAt <= now) return [];
+      const leads = publishedOthers
+        .filter(
+          (other) =>
+            other.post.isServiceLead &&
+            other.siteId === shift.siteId &&
+            other.startsAt < shift.endsAt &&
+            other.endsAt > shift.startsAt,
+        )
+        .map((other) => ({
+          ...person(other.employee),
+          phone: other.employee.phone,
+          role: 'Manager du service',
+        }));
+      const unique = leads.filter(
+        (lead, index) => leads.findIndex((l) => l.id === lead.id) === index,
+      );
+      return unique.length > 0 ? unique : (directors.get(shift.siteId) ?? []);
+    };
+
     const describe = (shift: (typeof mine)[number]) => ({
       id: shift.id,
       date: localDate(shift.startsAt, shift.site.timezone),
@@ -207,6 +236,7 @@ export class MeService {
       service: shift.service,
       color: shift.post.color,
       minutes: plannedMinutes(shift.startsAt, shift.endsAt, shift.breakMinutes),
+      whoToCall: whoToCall(shift),
       // Working together = same restaurant, hours that overlap mine.
       coworkers: publishedOthers
         .filter(
@@ -318,6 +348,37 @@ export class MeService {
         lines: lines.filter((line) => line.date === date),
       })),
     };
+  }
+
+  /** The site directors of each site, with their phone, as people to call. */
+  private async siteDirectors(siteIds: string[]) {
+    const grants = await this.prisma.roleGrant.findMany({
+      where: {
+        role: 'SITE_DIRECTOR',
+        siteId: { in: siteIds },
+        user: { isActive: true, employeeId: { not: null } },
+      },
+      include: { user: { include: { employee: true } } },
+    });
+    const bySite = new Map<
+      string,
+      { id: string; firstName: string; lastName: string; phone: string | null; role: string }[]
+    >();
+    for (const grant of grants) {
+      const employee = grant.user.employee!;
+      bySite.set(grant.siteId!, [
+        ...(bySite.get(grant.siteId!) ?? []),
+        { ...person(employee), phone: employee.phone, role: 'Responsable de site' },
+      ]);
+    }
+    return bySite;
+  }
+
+  /** My own phone number, the one colleagues are given when I run a service. */
+  async setPhone(user: SessionUser, phone: string | null) {
+    const employeeId = this.employeeIdOrThrow(user);
+    await this.prisma.employee.update({ where: { id: employeeId }, data: { phone } });
+    return { phone };
   }
 
   private employeeIdOrThrow(user: SessionUser): string {

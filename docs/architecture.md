@@ -142,7 +142,7 @@ AuditLog    (actor, action, entity, before, after, time)
 | Clock-out before the planned end | Ends at the actual clock-out |
 | Clock-out up to 10 minutes after the planned end | Ends at the planned end |
 | Clock-out from the 11th minute after the planned end | Only minutes beyond the 10th count (14 minutes late = 4), unless the validator decides otherwise |
-| Employee on a coupure (split shift) | Late clock-out never counted, at the end of either service |
+| Employee on a coupure (split shift) | Late clock-out not counted at the end of the service before the break; at the end of the day the usual 10-minute rule applies (changed 2026-11-17) |
 | Forgotten clock-out | Set to the planned end and flagged for the weekly check |
 | Clock-in with no planned shift | Recorded, with a warning on the manager's correction page |
 | Breaks | 20 minutes deducted automatically on every shift, whatever its length (so 40 minutes on a coupure); can also be clocked |
@@ -239,10 +239,12 @@ Built, checked against a running server and clicked through in a browser:
 - Month view with hours and number of shifts per employee.
 - PLANetBAO header: logo, site menu, tabs Planning / Badgeuse / Mon profil. Screens in French.
 - Badgeuse: validate, correct with a reason, add hours by hand, undo; every change in the audit log.
-- Leave requests: employee form in Mon profil; decided by the site director only (multi-site
-  manager for a director's own request, HR for office and lab); Demandes tab for deciders only.
+- Leave requests: salle decided by the site director, kitchen by the head chef, a director's own
+  by the multi-site manager, office and lab by HR; directors and the multi-site manager see all.
 - Mon espace, the personal side (phone first): Ma semaine across all restaurants with
   colleagues, the restaurant's line-up day by day, Congés, Profil by restaurant.
+- Last-minute problems: no cancelling in the app; each shift of the current week gives the
+  phone number of the manager of the service (or the site director). Leave starts next week at the earliest.
 - Publication: kitchen and salle are published separately per week (head chef: kitchen;
   site director: either). Employees see nothing of a department before that.
 - Badgeuse by day: one line per planned shift, editable paid hours and meals, validate a line

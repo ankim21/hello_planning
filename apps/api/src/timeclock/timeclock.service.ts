@@ -244,18 +244,20 @@ export class TimeclockService {
     for (const employee of employees) {
       const ownShifts = shifts.filter((s) => s.employeeId === employee.id);
 
-      // Coupure: two shifts starting on the same day at the site.
-      const shiftsPerDay = new Map<string, number>();
+      // Coupure: several shifts starting on the same day at the site. Every
+      // one but the last of the day is followed by the break.
+      const lastOfDay = new Map<string, string>();
       for (const shift of ownShifts) {
-        const day = localDate(shift.startsAt, zone);
-        shiftsPerDay.set(day, (shiftsPerDay.get(day) ?? 0) + 1);
+        lastOfDay.set(localDate(shift.startsAt, zone), shift.id); // sorted by start
       }
+      const endsBeforeBreak = (shift: { id: string; startsAt: Date }) =>
+        lastOfDay.get(localDate(shift.startsAt, zone)) !== shift.id;
       let available: PlannedShift[] = ownShifts.map((shift) => ({
         id: shift.id,
         start: shift.startsAt,
         end: shift.endsAt,
         breakMinutes: shift.breakMinutes,
-        isCoupure: shiftsPerDay.get(localDate(shift.startsAt, zone))! > 1,
+        endsBeforeBreak: endsBeforeBreak(shift),
       }));
 
       const { pairs } = pairClockEvents(
@@ -287,7 +289,7 @@ export class TimeclockService {
             start: shift.startsAt,
             end: shift.endsAt,
             breakMinutes: shift.breakMinutes,
-            isCoupure: shiftsPerDay.get(localDate(shift.startsAt, zone))! > 1,
+            endsBeforeBreak: endsBeforeBreak(shift),
           };
         const working = pair !== null && stillWorking(pair, now);
         const computed = pair
