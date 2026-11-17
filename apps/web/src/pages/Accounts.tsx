@@ -175,10 +175,17 @@ function Content({ myId }: { myId: string }) {
 
             <AddRole
               sites={options.sites}
-              onAdd={(role, siteId) =>
-                run(() =>
-                  api(`/accounts/${account.id}/grants`, { method: 'POST', body: { role, siteId } }),
-                )
+              taken={account.grants}
+              onAdd={(role, siteIds) =>
+                run(async () => {
+                  // One grant per restaurant; a role for the whole organisation has none.
+                  for (const siteId of siteIds.length > 0 ? siteIds : [null]) {
+                    await api(`/accounts/${account.id}/grants`, {
+                      method: 'POST',
+                      body: { role, siteId },
+                    })
+                  }
+                })
               }
             />
 
@@ -277,24 +284,42 @@ function Content({ myId }: { myId: string }) {
   )
 }
 
-/** Choose a role, then a restaurant when the role is held on one. */
+/**
+ * Choose a role, then where it applies: one restaurant for a chef, a manager
+ * or a site director; several at once for a multi-site manager; nowhere to
+ * choose for the roles that cover the whole organisation.
+ */
 function AddRole({
   sites,
+  taken,
   onAdd,
 }: {
   sites: AccountOptions['sites']
-  onAdd: (role: string, siteId: string | null) => void
+  taken: Account['grants']
+  onAdd: (role: string, siteIds: string[]) => void
 }) {
   const [role, setRole] = useState('')
-  const [siteId, setSiteId] = useState('')
+  const [siteIds, setSiteIds] = useState<string[]>([])
   const needsSite = SITE_ROLES.includes(role)
+  const several = role === 'MULTI_SITE_MANAGER'
+  // Restaurants where the account already has this role are not offered again.
+  const free = sites.filter(
+    (site) => !taken.some((grant) => grant.role === role && grant.site?.id === site.id),
+  )
+  const reset = () => {
+    setRole('')
+    setSiteIds([])
+  }
 
   return (
     <div className="add-role">
       <select
         aria-label="Rôle à ajouter"
         value={role}
-        onChange={(event) => setRole(event.target.value)}
+        onChange={(event) => {
+          setRole(event.target.value)
+          setSiteIds([])
+        }}
       >
         <option value="">Ajouter un rôle…</option>
         <optgroup label="Sur un site">
@@ -312,35 +337,60 @@ function AddRole({
           ))}
         </optgroup>
       </select>
-      {needsSite && (
+
+      {needsSite && !several && (
         <select
           aria-label="Site du rôle"
-          value={siteId}
-          onChange={(event) => setSiteId(event.target.value)}
+          value={siteIds[0] ?? ''}
+          onChange={(event) => setSiteIds(event.target.value ? [event.target.value] : [])}
         >
           <option value="">Choisir le site…</option>
-          {sites.map((site) => (
+          {free.map((site) => (
             <option key={site.id} value={site.id}>
               {site.name}
             </option>
           ))}
         </select>
       )}
+
       {role && (
         <>
           <button
             className="primary"
-            disabled={needsSite && !siteId}
+            disabled={needsSite && siteIds.length === 0}
             onClick={() => {
-              onAdd(role, needsSite ? siteId : null)
-              setRole('')
-              setSiteId('')
+              onAdd(role, needsSite ? siteIds : [])
+              reset()
             }}
           >
-            Ajouter
+            Ajouter{several && siteIds.length > 0 ? ` sur ${siteIds.length} site${siteIds.length > 1 ? 's' : ''}` : ''}
           </button>
+          <button onClick={reset}>Annuler</button>
           <span className="muted role-help">{ROLE_HELP[role]}</span>
         </>
+      )}
+
+      {several && (
+        <fieldset className="checks site-checks">
+          <legend>Ses sites</legend>
+          {free.map((site) => (
+            <label key={site.id} className="radio">
+              <input
+                type="checkbox"
+                checked={siteIds.includes(site.id)}
+                onChange={() =>
+                  setSiteIds(
+                    siteIds.includes(site.id)
+                      ? siteIds.filter((id) => id !== site.id)
+                      : [...siteIds, site.id],
+                  )
+                }
+              />
+              {site.name}
+            </label>
+          ))}
+          {free.length === 0 && <span className="muted">Déjà sur tous les sites.</span>}
+        </fieldset>
       )}
     </div>
   )

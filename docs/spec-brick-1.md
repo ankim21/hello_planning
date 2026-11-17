@@ -114,6 +114,9 @@ The lab is left out of brick 1.
 | PLN-49 | Alerts show their list at once on hover, for an employee and for the week; a click keeps the list open | Confirmed |
 | UI-7 | The tabs (Planning, Badgeuse, Demandes, Comptes) sit on the left, right after the restaurant menu; the bell and Mon espace are on the right | Confirmed |
 | UI-8 | No side margins on the planning and Badgeuse screens | Confirmed |
+| UI-11 | An account button at the top right of every screen opens a menu: who is logged in, Mon profil, "Se connecter avec un autre compte" and "Se déconnecter" | Confirmed 2026-11-17 |
+| UI-9 | Every screen works at phone (390 px) and tablet (820 and 1180 px) widths: nothing overflows the screen, touch targets are at least 30 px, the header takes two rows on a phone | Checked 2026-11-17 in an emulated browser, not on real devices |
+| UI-10 | On touch screens the corner "+" is hidden; tapping the empty part of a day adds a shift. Dragging shifts is mouse-only | Proposed |
 | PLN-41 | A shift with a note shows a small mark on its card, and the note appears when hovering the card | Confirmed |
 | PLN-37 | A shift is refused when the person already has one during those hours, whether it is added by hand, edited or duplicated by dragging, and across every restaurant they work at | Confirmed |
 | PLN-38 | Superseded by PLN-56: a person cannot have two shifts in the same service on the same day, whatever the posts | Confirmed |
@@ -180,7 +183,7 @@ except:
 | REQ-1 | Employees submit leave requests and shift-swap requests | Confirmed |
 | REQ-2 | Requests are visible to the employee and to the planner | Confirmed |
 | REQ-3 | Deciders as in section 2 | Confirmed |
-| REQ-9 | Leave of salle staff is decided by the site director; leave of kitchen staff by the head chef; the head chef's own request by the site director (multi-site director, 2026-11-17; replaces the two earlier versions) | Confirmed, except the head chef's own request (Proposed) |
+| REQ-9 | Who decides leave (latest version, 17 Nov 2026): salle staff → site director; kitchen staff → head chef; head chef → site director; site director → the multi-site manager only; multi-site manager → the operations team; operations team and office → HR | Confirmed, except the head chef's own request and the lab going to HR (Proposed) |
 | REQ-22 | A site director's own leave request is decided by the multi-site manager (reconfirmed 2026-11-16) | Confirmed |
 | REQ-21 | The site director and the multi-site manager see every request of their restaurants, as an overview; the head chef sees kitchen requests only; managers see none | Confirmed for the multi-site manager; Proposed for the site director |
 | REQ-23 | The multi-site manager is notified each time someone requests leave | Confirmed; today she sees them in Demandes, no push or e-mail yet |
@@ -277,6 +280,18 @@ except:
 |---|---|---|
 | PIL-1 | First roll-out: the planning, in one restaurant; no pay | Confirmed |
 | PIL-2 | Skello keeps running in parallel in that restaurant during the pilot | Confirmed |
+
+### 3.9f Building a planning faster
+| ID | Requirement | Status |
+|---|---|---|
+| FAST-1 | Fill a gap in one click: a missing post opens a list of the people who could take it, best choice first, and one click plans the shift | Confirmed 2026-11-17 |
+| FAST-2 | A person qualifies when they work at the site, hold the post, have no shift in that service, no overlapping hours and no absence that day | Proposed |
+| FAST-3 | Ranking: people the shift would cause no new alert for come first, then those with the most hours left on their contract that week | Proposed |
+| FAST-4 | The shift created uses the restaurant's most frequent hours for that post and service; failing that, for that service; failing that, 10:00–15:00 or 18:00–23:00 | Proposed |
+| FAST-5 | A department total ("Salle — total") cannot be filled this way, since it names no post | Proposed |
+| FAST-6 | A fairness rule for suggestions (weekends, closing shifts) | Open |
+| FAST-7 | Proposing a whole planning from the needs; rotations; availability given by employees; demand forecast from sales | Discussed, not built |
+| ACC-16 | A multi-site manager's role is given on several restaurants in one step | Confirmed 2026-11-17 |
 
 ### 3.10 Differences with the HR payroll spec (interviews of 15 Nov 2026)
 

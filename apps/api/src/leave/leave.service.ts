@@ -97,6 +97,8 @@ export class LeaveService {
       );
     const route = routeFor({
       siteType: site.type,
+      isOps: hasRoleHere('OPS'),
+      isMultiSiteManager: hasRoleHere('MULTI_SITE_MANAGER'),
       isSiteDirector: hasRoleHere('SITE_DIRECTOR'),
       isHeadChef: hasRoleHere('HEAD_CHEF'),
       postDepartments: employee.posts.map(({ post }) => post.department),

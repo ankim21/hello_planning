@@ -50,6 +50,11 @@ const absenceSchema = z.object({
   note: z.string().max(500).optional(),
 });
 
+const suggestionSchema = z.object({
+  date,
+  service: z.enum(['AM', 'PM']),
+  postId: z.uuid(),
+});
 const needsSchema = z.object({
   needs: z
     .array(
@@ -160,6 +165,16 @@ export class PlanningController {
     @Body({ schema: needsSchema }) { needs }: z.infer<typeof needsSchema>,
   ) {
     return this.planning.setNeeds(user, siteId, needs);
+  }
+
+  /** Who could take a missing post, best choice first. */
+  @Get('suggestions')
+  suggestions(
+    @CurrentUser() user: SessionUser,
+    @Param('siteId') siteId: string,
+    @Query({ schema: suggestionSchema }) query: z.infer<typeof suggestionSchema>,
+  ) {
+    return this.planning.suggestions(user, siteId, query.date, query.service, query.postId);
   }
 
   @Get('popular-shifts')

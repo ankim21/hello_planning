@@ -74,7 +74,10 @@ password (10 characters or more), confirmation.
 logs in with it, is sent straight to Profil, and the password form is already
 open with a notice.
 
-**Log out.** In Mon espace → Profil.
+**Log out.** The round account button at the top right of every screen opens
+a menu with the person's name and e-mail, "Mon profil", "Se connecter avec un
+autre compte" and "Se déconnecter". Both end the session on that device and
+return to the login page. Also available in Mon espace → Profil.
 
 ---
 
@@ -94,8 +97,9 @@ organisation.
 | Search | By name or e-mail. |
 
 Rules:
-- Chef de cuisine, Manager, Responsable de site and Responsable multisite are
-  given **on one restaurant**. A multi-site manager gets one role per restaurant.
+- Chef de cuisine, Manager and Responsable de site are given **on one
+  restaurant**. Responsable multisite is given on several at once, by ticking
+  her restaurants.
 - Équipe opérationnelle, Ressources humaines and Administrateur cover **the
   whole organisation**.
 - The same role cannot be given twice on the same restaurant.
@@ -188,7 +192,8 @@ Screen: Gestion → **Planning**, for the site chosen in the header menu.
 ### 5.2 Adding and changing
 
 - **"+" on the top-left corner of a day**, shown when the cell is hovered,
-  opens the editor. From the view by post, the post and
+  opens the editor. Clicking the empty part of a day does the same; on a
+  touch screen, where nothing hovers, that is how a shift is added. From the view by post, the post and
   service are already set and the employee is chosen in the editor.
 - **Clicking a card** opens the same editor on that card.
 - The editor's title names the employee ("Modifier le shift de …") on the
@@ -244,6 +249,17 @@ The planning then compares the rule with what is planned. A chip
 "⚠ n postes manquants" lists the gaps by day ("sam. 19 déc. · soir : Bar 0/1"),
 and the same list appears in the publication menu before publishing. It is a
 warning: publishing stays possible.
+
+### 5.3d Filling a missing post
+
+Each missing post in the list is a button, "… · Combler". It opens a window
+with the people who could take the post, best choice first: they work at the
+site, hold the post, are free on that service and not absent. Those the shift
+would cause no new alert for come first, then those with the most hours left
+on their contract that week. "Planifier" adds the shift with the restaurant's
+most frequent hours for that post. The window stays open while people are
+still missing, and says so when nobody is available. A department total
+cannot be filled this way.
 
 ### 5.4 What is refused
 
@@ -448,7 +464,8 @@ Worked out when the request is made, and stored with it.
 | Kitchen staff (every post held is a kitchen post) | Head chef |
 | The head chef | Site director |
 | A site director | Multi-site manager |
-| Office or lab staff | HR |
+| A multi-site manager | Operations team |
+| The operations team, office or lab staff | HR |
 
 - The multi-site manager can also decide what her site directors decide.
 - An administrator can decide any request.

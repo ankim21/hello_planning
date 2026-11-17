@@ -6,6 +6,8 @@ const on = (role: Grant['role'], siteId: string | null): Grant[] => [
 ];
 const staff = {
   siteType: 'RESTAURANT',
+  isOps: false,
+  isMultiSiteManager: false,
   isSiteDirector: false,
   isHeadChef: false,
 } as const;
@@ -33,6 +35,16 @@ describe('routeFor', () => {
     expect(routeFor({ ...staff, isSiteDirector: true, postDepartments: ['SALLE'] })).toBe(
       'MULTI_SITE',
     );
+  });
+
+  it('sends a multi-site manager to the operations team', () => {
+    expect(
+      routeFor({ ...staff, isMultiSiteManager: true, postDepartments: [] }),
+    ).toBe('OPS');
+  });
+
+  it('sends the operations team to HR, whatever site they are attached to', () => {
+    expect(routeFor({ ...staff, isOps: true, postDepartments: [] })).toBe('HR');
   });
 
   it('sends office and lab staff to HR', () => {
@@ -66,6 +78,13 @@ describe('canDecide', () => {
     expect(canDecide(on('MULTI_SITE_MANAGER', 'a'), own)).toBe(true);
   });
 
+  it('lets the operations team decide a multi-site manager request, and nobody below', () => {
+    const own = { route: 'OPS', siteId: 'a' } as const;
+    expect(canDecide(on('OPS', null), own)).toBe(true);
+    expect(canDecide(on('MULTI_SITE_MANAGER', 'a'), own)).toBe(false);
+    expect(canDecide(on('SITE_DIRECTOR', 'a'), own)).toBe(false);
+  });
+
   it('keeps office requests for HR', () => {
     const office = { route: 'HR', siteId: 'office' } as const;
     expect(canDecide(on('HR', null), office)).toBe(true);
@@ -91,6 +110,12 @@ describe('canSee', () => {
   it('shows the head chef kitchen requests only', () => {
     expect(canSee(on('HEAD_CHEF', 'a'), kitchen)).toBe(true);
     expect(canSee(on('HEAD_CHEF', 'a'), salle)).toBe(false);
+  });
+
+  it('hides a multi-site manager request from her site directors', () => {
+    const hers = { route: 'OPS', siteId: 'a' } as const;
+    expect(canSee(on('SITE_DIRECTOR', 'a'), hers)).toBe(false);
+    expect(canSee(on('OPS', null), hers)).toBe(true);
   });
 
   it('hides everything from managers', () => {

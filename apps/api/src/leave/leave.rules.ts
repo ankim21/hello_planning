@@ -2,12 +2,13 @@
  * Who decides a leave request, and who may see it. Pure functions, tested in
  * leave.rules.spec.ts.
  *
- * As given by the company (multi-site director, 2026-11-17):
+ * As given by the company (17 Nov 2026):
  *   - salle staff: the site director;
  *   - kitchen staff: the head chef;
  *   - the head chef's own request: the site director;
- *   - a site director's own request: the multi-site manager;
- *   - office and lab staff: the HR team.
+ *   - a site director's own request: the multi-site manager, and only her;
+ *   - a multi-site manager's own request: the operations team;
+ *   - the operations team's own requests, office and lab staff: the HR team.
  * The multi-site manager and the site director see every request of their
  * restaurants, to keep an overview.
  */
@@ -20,6 +21,10 @@ import type {
 
 export interface Requester {
   siteType: SiteType;
+  /** The employee belongs to the operations team. */
+  isOps: boolean;
+  /** The employee is multi-site manager of that site. */
+  isMultiSiteManager: boolean;
   /** The employee is site director of that site. */
   isSiteDirector: boolean;
   /** The employee is head chef of that site. */
@@ -29,8 +34,11 @@ export interface Requester {
 }
 
 export function routeFor(requester: Requester): LeaveRoute {
-  if (requester.siteType !== 'RESTAURANT') return 'HR';
+  // The highest role held decides, whatever the site the person is attached to.
+  if (requester.isOps) return 'HR';
+  if (requester.isMultiSiteManager) return 'OPS';
   if (requester.isSiteDirector) return 'MULTI_SITE';
+  if (requester.siteType !== 'RESTAURANT') return 'HR';
   if (requester.isHeadChef) return 'DIRECTOR';
   // Kitchen staff = every post held is a kitchen post. Someone who also
   // holds a salle post goes to the site director.
@@ -44,6 +52,7 @@ const ROLE_FOR_ROUTE = {
   DIRECTOR: 'SITE_DIRECTOR',
   CHEF: 'HEAD_CHEF',
   MULTI_SITE: 'MULTI_SITE_MANAGER',
+  OPS: 'OPS',
   HR: 'HR',
 } as const;
 
@@ -65,9 +74,16 @@ export function canDecide(
   );
 }
 
+/** The requests each overview role follows without deciding them all. */
+const OVERVIEW: Partial<Record<Grant['role'], LeaveRoute[]>> = {
+  SITE_DIRECTOR: ['DIRECTOR', 'CHEF'],
+  MULTI_SITE_MANAGER: ['DIRECTOR', 'CHEF', 'MULTI_SITE'],
+};
+
 /**
  * May this person see the request? Those who decide it, plus the site
- * director and the multi-site manager for every request of the restaurant.
+ * director and the multi-site manager for the requests of the people below
+ * them in their restaurants. Nobody sees a request from above them.
  */
 export function canSee(
   grants: Grant[],
@@ -75,11 +91,10 @@ export function canSee(
 ): boolean {
   return (
     canDecide(grants, request) ||
-    (request.route !== 'HR' &&
-      grants.some(
-        (grant) =>
-          onSite(grant, request.siteId) &&
-          (grant.role === 'SITE_DIRECTOR' || grant.role === 'MULTI_SITE_MANAGER'),
-      ))
+    grants.some(
+      (grant) =>
+        onSite(grant, request.siteId) &&
+        (OVERVIEW[grant.role]?.includes(request.route) ?? false),
+    )
   );
 }

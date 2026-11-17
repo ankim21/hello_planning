@@ -15,9 +15,10 @@ export const ROLE_HELP: Record<string, string> = {
   HEAD_CHEF: 'Planifie et publie la cuisine, décide les congés de la cuisine.',
   MANAGER: 'Voit le planning, vérifie et valide les badgeages.',
   SITE_DIRECTOR: 'Gère tout le site : planning, badgeuse, congés de la salle.',
-  MULTI_SITE_MANAGER: 'Comme un responsable de site, sur chacun de ses sites.',
-  OPS: "Voit tous les sites, sans rien modifier.",
-  HR: 'Voit tous les sites, saisit les absences, verrouille la paie.',
+  MULTI_SITE_MANAGER:
+    'Comme un responsable de site, sur chacun de ses sites. Décide les congés de ses responsables de site.',
+  OPS: 'Voit tous les sites, sans rien modifier. Décide les congés des responsables multisite.',
+  HR: "Voit tous les sites, saisit les absences, verrouille la paie. Décide les congés du bureau et de l'équipe opérationnelle.",
   ADMIN: 'Tous les droits, dont les comptes, les rôles et les tablettes.',
 }
 

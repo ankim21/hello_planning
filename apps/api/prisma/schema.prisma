@@ -342,7 +342,8 @@ enum LeaveRoute {
   DIRECTOR // the site director: salle staff, and the head chef's own request
   CHEF // the head chef: kitchen staff
   MULTI_SITE // the multi-site manager, for a site director's own request
-  HR // office and lab staff
+  OPS // the operations team, for a multi-site manager's own request
+  HR // the operations team's own requests, office and lab staff
 }
 
 model LeaveRequest {

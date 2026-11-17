@@ -391,6 +391,7 @@ export class PlanningService {
             service: need.service,
             // A post by its name; a department as a total.
             label: need.post?.name ?? (need.department === 'KITCHEN' ? 'Cuisine (total)' : 'Salle (total)'),
+            postId: need.postId, // null for a department total
             department: need.post?.department ?? need.department!,
             needed: need.count,
             planned: people.size,
@@ -399,6 +400,159 @@ export class PlanningService {
       }
     }
     return missing;
+  }
+
+  // ───────────── Filling a gap ─────────────
+
+  /**
+   * Who could take a missing post, best choice first.
+   *
+   * Someone qualifies when they work at the site, hold the post, are free on
+   * that service (no shift in it, no overlapping hours, no absence that day).
+   * They are ranked: those the shift would cause no new alert for, then by
+   * hours left on their contract this week.
+   *
+   * The hours proposed are the restaurant's most usual ones for that post and
+   * service. Nothing is created here: the planner picks, then a normal shift
+   * is added.
+   */
+  async suggestions(
+    user: SessionUser,
+    siteId: string,
+    date: string,
+    service: 'AM' | 'PM',
+    postId: string,
+  ) {
+    const site = await this.siteOrThrow(siteId);
+    const post = await this.prisma.post.findUnique({ where: { id: postId } });
+    if (!post) throw new BadRequestException('Poste inconnu');
+    this.access.assert(user, 'shift.write', siteId, post.department);
+
+    // The usual hours: this post and service first, else this service.
+    const popular = await this.popularShifts(siteId);
+    const ofPost = popular.find((p) => p.postId === postId && p.service === service);
+    const usual = ofPost ?? popular.find((p) => p.service === service);
+    const start = usual?.start ?? (service === 'AM' ? '10:00' : '18:00');
+    const end = usual?.end ?? (service === 'AM' ? '15:00' : '23:00');
+    const template = {
+      start,
+      end,
+      breakMinutes: usual?.breakMinutes ?? shiftDefaults(start).breakMinutes,
+      meals: usual?.meals ?? shiftDefaults(start).meals,
+      // Where the hours come from, so the screen can say so honestly.
+      source: ofPost ? 'post' : usual ? 'service' : 'default',
+    };
+    const { startsAt, endsAt } = shiftInstants(date, start, end, site.timezone);
+    const minutes = plannedMinutes(startsAt, endsAt, template.breakMinutes);
+
+    const monday = mondayOf(date);
+    const dates = Array.from({ length: 7 }, (_, i) => addDays(monday, i));
+    const weekStart = zonedDateTime(monday, '00:00', site.timezone);
+    const weekEnd = zonedDateTime(addDays(monday, 7), '00:00', site.timezone);
+
+    const holders = await this.prisma.employee.findMany({
+      where: {
+        isActive: true,
+        assignments: { some: { siteId } },
+        posts: { some: { postId } },
+      },
+      include: {
+        contracts: {
+          where: {
+            startDate: { lte: toDbDate(dates[6]) },
+            OR: [{ endDate: null }, { endDate: { gte: toDbDate(monday) } }],
+          },
+          orderBy: { startDate: 'desc' },
+          take: 1,
+        },
+        // Their whole week, in every restaurant, plus the day before.
+        shifts: {
+          where: { startsAt: { gte: new Date(weekStart.getTime() - DAY), lt: weekEnd } },
+          include: { site: true },
+        },
+        absences: {
+          where: { startDate: { lte: toDbDate(dates[6]) }, endDate: { gte: toDbDate(monday) } },
+          include: { type: true },
+        },
+      },
+    });
+
+    const candidates = [];
+    for (const person of holders) {
+      const week = person.shifts.map((shift) => ({
+        date: localDate(shift.startsAt, shift.site.timezone),
+        service: shift.service,
+        startsAt: shift.startsAt,
+        endsAt: shift.endsAt,
+        minutes: plannedMinutes(shift.startsAt, shift.endsAt, shift.breakMinutes),
+      }));
+      const absences = person.absences.map((absence) => ({
+        startDate: fromDbDate(absence.startDate),
+        endDate: fromDbDate(absence.endDate),
+        typeName: absence.type.name,
+        counts: absence.type.countsInCounter,
+        dayPart: absence.dayPart,
+        startTime: absence.startTime,
+        endTime: absence.endTime,
+      }));
+
+      // Not free: already on that service, busy during those hours, or absent.
+      const busy = week.some(
+        (shift) =>
+          (shift.date === date && shift.service === service) ||
+          (shift.startsAt < endsAt && shift.endsAt > startsAt),
+      );
+      const absent = absences.some((a) => a.startDate <= date && date <= a.endDate);
+      if (busy || absent) continue;
+
+      const contract = person.contracts[0];
+      const contractMinutes =
+        contract?.weeklyHours != null ? Math.round(Number(contract.weeklyHours) * 60) : null;
+      const ofWeek = week.filter((shift) => dates.includes(shift.date));
+      const planned =
+        ofWeek.reduce((sum, shift) => sum + shift.minutes, 0) +
+        countedAbsenceMinutes(
+          dates,
+          absences
+            .filter((a) => a.counts)
+            .map((a) => ({
+              startDate: a.startDate,
+              endDate: a.endDate,
+              dayMinutes: absenceDayMinutes(contractMinutes, a.dayPart, a.startTime, a.endTime),
+            })),
+        );
+
+      // The alerts this shift would add to the person's week.
+      const describe = (alert: { kind: string; date?: string }) => `${alert.kind}:${alert.date ?? ''}`;
+      const before = new Set(planningAlerts(monday, week, absences).map(describe));
+      const after = planningAlerts(
+        monday,
+        [...week, { date, service, startsAt, endsAt, minutes }],
+        absences,
+      );
+      const newAlerts = after.filter((alert) => !before.has(describe(alert)));
+
+      candidates.push({
+        employee: { id: person.id, firstName: person.firstName, lastName: person.lastName },
+        contractMinutes,
+        plannedMinutes: planned,
+        // Hours still to plan this week, before this shift.
+        remainingMinutes: contractMinutes === null ? null : contractMinutes - planned,
+        newAlerts,
+      });
+    }
+
+    candidates.sort(
+      (a, b) =>
+        a.newAlerts.length - b.newAlerts.length ||
+        (b.remainingMinutes ?? -Infinity) - (a.remainingMinutes ?? -Infinity),
+    );
+    return {
+      post: { id: post.id, name: post.name, color: post.color },
+      template,
+      minutes,
+      candidates: candidates.slice(0, 10),
+    };
   }
 
   // ───────────── Popular shifts ─────────────

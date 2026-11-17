@@ -47,8 +47,8 @@
 .post-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--post); }
 .post-service { font-weight: 500; color: var(--muted); }
 .me .round { width: 40px; height: 40px; padding: 0; border-radius: 50%; font-size: 1.2rem; line-height: 1; }
-.empty { display: flex; flex-direction: column; gap: 4px; align-items: center; text-align: center; padding: 36px 16px; border: 1px dashed var(--line); border-radius: 16px; color: var(--muted); }
-.empty strong { color: var(--text); }
+.me .empty { display: flex; flex-direction: column; gap: 4px; align-items: center; text-align: center; padding: 36px 16px; border: 1px dashed var(--line); border-radius: 16px; color: var(--muted); }
+.me .empty strong { color: var(--text); }
 
 .week-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .week-label { display: flex; flex-direction: column; align-items: center; line-height: 1.25; }

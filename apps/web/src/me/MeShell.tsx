@@ -9,10 +9,11 @@
 import { type ReactNode, useEffect, useState } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router'
 import { api, ApiError, type MeOverview } from '../api.ts'
+import { AccountMenu } from '../pages/AccountMenu.tsx'
 import { Bell } from '../pages/Bell.tsx'
 import { Logo } from '../pages/Logo.tsx'
 import './me.css'
-import { Avatar, LeaveIcon, ProfileIcon, TeamIcon, WeekIcon } from './parts.tsx'
+import { LeaveIcon, ProfileIcon, TeamIcon, WeekIcon } from './parts.tsx'
 
 export function MeShell({ children }: { children: (me: MeOverview) => ReactNode }) {
   const navigate = useNavigate()
@@ -71,11 +72,10 @@ export function MeShell({ children }: { children: (me: MeOverview) => ReactNode 
               Gestion
             </Link>
           )}
-          {employee && (
-            <Link to="/moi/profil" aria-label="Mon profil">
-              <Avatar person={employee} size={34} />
-            </Link>
-          )}
+          <AccountMenu
+            name={employee ? `${employee.firstName} ${employee.lastName}` : null}
+            email={me.email}
+          />
         </span>
       </header>
 

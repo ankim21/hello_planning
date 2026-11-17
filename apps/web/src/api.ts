@@ -192,6 +192,8 @@ export interface MissingPost {
   date: string
   service: 'AM' | 'PM'
   label: string
+  /** The post short of people; null when the line is a department total. */
+  postId: string | null
   department: Department
   needed: number
   planned: number
@@ -265,7 +267,7 @@ export interface LeaveRequest {
   startTime: string | null
   endTime: string | null
   note: string | null
-  route: 'DIRECTOR' | 'CHEF' | 'MULTI_SITE' | 'HR'
+  route: 'DIRECTOR' | 'CHEF' | 'MULTI_SITE' | 'OPS' | 'HR'
   status: LeaveStatus
   decisionNote: string | null
   createdAt: string

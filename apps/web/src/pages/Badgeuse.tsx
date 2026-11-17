@@ -307,7 +307,7 @@ function Day({ site }: { site: Site | undefined }) {
                         time ? (
                           <span className={time === paid ? `time ${kind}` : 'time'}>{time}</span>
                         ) : (
-                          <span className="time empty">—</span>
+                          <span className="time none">—</span>
                         )
                       return (
                         <tr key={row.key} className={row.validation && !dirty(row) ? 'validated' : ''}>

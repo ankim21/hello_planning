@@ -5,6 +5,7 @@
 import { type ReactNode, useEffect, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router'
 import { api, type InboxRequest, type Me, type Site } from '../api.ts'
+import { AccountMenu } from './AccountMenu.tsx'
 import { Bell } from './Bell.tsx'
 import { Logo } from './Logo.tsx'
 import { useMe } from './useMe.ts'
@@ -45,7 +46,7 @@ export function Shell({ siteId, section = 'planning', children }: Props) {
   // The people who decide leave requests, or keep an overview of them.
   const manages =
     me?.grants.some((grant) =>
-      ['HEAD_CHEF', 'SITE_DIRECTOR', 'MULTI_SITE_MANAGER', 'HR', 'ADMIN'].includes(grant.role),
+      ['HEAD_CHEF', 'SITE_DIRECTOR', 'MULTI_SITE_MANAGER', 'OPS', 'HR', 'ADMIN'].includes(grant.role),
     ) ?? false
 
   useEffect(() => {
@@ -120,6 +121,7 @@ export function Shell({ siteId, section = 'planning', children }: Props) {
           <NavLink to="/moi" className="space-switch">
             Mon espace
           </NavLink>
+          <AccountMenu name={null} email={me.email} />
         </span>
       </header>
       {children({ me, sites })}

@@ -24,13 +24,14 @@ import {
   type Department,
   type LockStatus,
   type MissingPost,
-  type PlanningAlert,
   type PlanningRow,
   type PlanningWeek,
   type PopularShift,
   type ShiftCard,
 } from '../api.ts'
 import { CardEditor, type EditorTarget } from './CardEditor.tsx'
+import { alertText } from './alertText.ts'
+import { FillGap } from './FillGap.tsx'
 import { NeedsDialog } from './NeedsDialog.tsx'
 import {
   addDays,
@@ -98,6 +99,8 @@ function Board({ siteId }: { siteId: string }) {
   // The shifts this restaurant plans most often, offered as templates.
   const [popular, setPopular] = useState<PopularShift[]>([])
   const [needsOpen, setNeedsOpen] = useState(false)
+  // A missing post being filled from the list of suggestions.
+  const [filling, setFilling] = useState<MissingPost | null>(null)
   // While dragging: the cell under the pointer, and whether the pointer has
   // left the planning (where dropping deletes the shift).
   const [hoverCell, setHoverCell] = useState<string | null>(null)
@@ -370,6 +373,14 @@ function Board({ siteId }: { siteId: string }) {
   const cell = (target: DropTarget, children: ReactNode) => {
     const key = `${target.employeeId ?? `${target.postId}${target.service}`}:${target.date}`
     const accepts = dragged !== null && !isOrigin(dragged, target)
+    const canAdd = rights.editShifts || rights.editAbsences
+    const addTarget: EditorTarget = target.employeeId
+      ? {
+          kind: 'new',
+          date: target.date,
+          employee: data.rows.find((row) => row.employee.id === target.employeeId)!.employee,
+        }
+      : { kind: 'new', date: target.date, postId: target.postId, service: target.service }
     const zone = (action: 'move' | 'duplicate', label: string) => (
       <div
         className={`drop-zone ${action}`}
@@ -391,9 +402,14 @@ function Board({ siteId }: { siteId: string }) {
     return (
       <td
         key={target.date}
-        className={isMonday(target.date) ? 'week-start' : ''}
+        className={[isMonday(target.date) ? 'week-start' : '', canAdd ? 'can-add' : ''].join(' ')}
         onDragOver={() => {
           if (accepts && hoverCell !== key) setHoverCell(key)
+        }}
+        // Clicking the empty part of a day adds a shift there. On a touch
+        // screen, where nothing hovers, it is the way to add one.
+        onClick={(event) => {
+          if (canAdd && event.target === event.currentTarget) setEditing(addTarget)
         }}
       >
         {children}
@@ -445,7 +461,12 @@ function Board({ siteId }: { siteId: string }) {
         {/* Kitchen and salle are published separately, week by week: the
             staff see nothing of a department before it is published. */}
         {!month && <WeekAlerts rows={data.rows} />}
-        {!month && <MissingPosts missing={data.missing} />}
+        {!month && (
+          <MissingPosts
+            missing={data.missing}
+            onFill={rights.editShifts ? setFilling : undefined}
+          />
+        )}
         {!month && rights.needs && <button onClick={() => setNeedsOpen(true)}>Besoins</button>}
 
         {!month && data.publication && (
@@ -453,6 +474,7 @@ function Board({ siteId }: { siteId: string }) {
             publication={data.publication}
             mayPublish={rights.publish}
             missing={data.missing}
+            onFill={rights.editShifts ? setFilling : undefined}
             onChange={setPublished}
           />
         )}
@@ -727,6 +749,18 @@ function Board({ siteId }: { siteId: string }) {
         />
       )}
 
+      {filling && (
+        <FillGap
+          siteId={siteId}
+          gap={filling}
+          onClose={() => setFilling(null)}
+          onFilled={() => {
+            load()
+            loadPopular()
+          }}
+        />
+      )}
+
       {needsOpen && (
         <NeedsDialog
           siteId={siteId}
@@ -755,11 +789,13 @@ function Publication({
   publication,
   mayPublish,
   missing,
+  onFill,
   onChange,
 }: {
   publication: Record<Department, string | null>
   mayPublish: Department[]
   missing: MissingPost[]
+  onFill?: (gap: MissingPost) => void
   onChange: (departments: Department[], published: boolean) => void
 }) {
   const [open, setOpen] = useState(false)
@@ -808,7 +844,16 @@ function Publication({
                 ⚠ {missing.length} poste{missing.length > 1 ? 's' : ''} manquant
                 {missing.length > 1 ? 's' : ''} par rapport aux besoins
               </strong>
-              <MissingList missing={missing} />
+              <MissingList
+                missing={missing}
+                onFill={
+                  onFill &&
+                  ((gap) => {
+                    setOpen(false)
+                    onFill(gap)
+                  })
+                }
+              />
             </div>
           )}
           {departments.map((department) => {
@@ -853,25 +898,18 @@ function Publication({
   )
 }
 
-/** One alert, as a sentence. Alerts warn; they never block the planning. */
-function alertText(alert: PlanningAlert): string {
-  const day = alert.date
-    ? dayLabel(alert.date, { weekday: 'long', day: 'numeric', month: 'short' })
-    : ''
-  switch (alert.kind) {
-    case 'REST_DAYS':
-      return 'Pas deux jours de repos consécutifs dans la semaine'
-    case 'WEEKLY_MAX':
-      return `${hours(alert.minutes ?? 0)} planifiées : plus de 46h dans la semaine`
-    case 'DAILY_REST':
-      return `Seulement ${hours(alert.minutes ?? 0)} de repos avant le ${day} (11h attendues)`
-    case 'SHIFT_ON_ABSENCE':
-      return `Shift planifié le ${day} malgré : ${alert.detail}`
-  }
-}
-
-/** The missing posts, grouped by day: "sam. 21 nov. · soir — Bar 0/1". */
-function MissingList({ missing }: { missing: MissingPost[] }) {
+/**
+ * The missing posts, grouped by day: "sam. 21 nov. · soir : Bar 0/1".
+ * With `onFill`, a missing post is a button that opens the suggestions; a
+ * department total stays plain text, since it names no post to fill.
+ */
+function MissingList({
+  missing,
+  onFill,
+}: {
+  missing: MissingPost[]
+  onFill?: (gap: MissingPost) => void
+}) {
   const days = [...new Set(missing.map((line) => line.date))]
   return (
     <ul className="missing-list">
@@ -882,10 +920,25 @@ function MissingList({ missing }: { missing: MissingPost[] }) {
             const lines = missing.filter((line) => line.date === date && line.service === service)
             if (lines.length === 0) return null
             return (
-              <span key={service}>
+              <span key={service} className="missing-service">
                 {' '}
                 · {service === 'AM' ? 'midi' : 'soir'} :{' '}
-                {lines.map((line) => `${line.label} ${line.planned}/${line.needed}`).join(', ')}
+                {lines.map((line) =>
+                  onFill && line.postId ? (
+                    <button
+                      key={line.label}
+                      className="missing-fill"
+                      title="Voir qui peut prendre ce poste"
+                      onClick={() => onFill(line)}
+                    >
+                      {line.label} {line.planned}/{line.needed} · Combler
+                    </button>
+                  ) : (
+                    <span key={line.label} className="missing-plain">
+                      {line.label} {line.planned}/{line.needed}
+                    </span>
+                  ),
+                )}
               </span>
             )
           })}
@@ -896,14 +949,20 @@ function MissingList({ missing }: { missing: MissingPost[] }) {
 }
 
 /** Posts short of the restaurant's needs, behind one chip in the toolbar. */
-function MissingPosts({ missing }: { missing: MissingPost[] }) {
+function MissingPosts({
+  missing,
+  onFill,
+}: {
+  missing: MissingPost[]
+  onFill?: (gap: MissingPost) => void
+}) {
   if (missing.length === 0) return null
   return (
     <AlertPop
       label={`⚠ ${missing.length} poste${missing.length > 1 ? 's' : ''} manquant${missing.length > 1 ? 's' : ''}`}
       name="Postes manquants par rapport aux besoins"
     >
-      <MissingList missing={missing} />
+      <MissingList missing={missing} onFill={onFill} />
     </AlertPop>
   )
 }
