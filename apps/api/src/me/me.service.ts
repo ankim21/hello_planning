@@ -43,6 +43,7 @@ export class MeService {
   async overview(user: SessionUser) {
     const base = {
       email: user.email,
+      mustChangePassword: user.mustChangePassword,
       grants: user.grants,
       // People with a role also have the management screens.
       hasManagement: user.grants.length > 0,

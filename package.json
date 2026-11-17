@@ -3,7 +3,7 @@
   "private": true,
   "workspaces": ["apps/*", "packages/*"],
   "scripts": {
-    "db:up": "docker compose up -d db",
+    "db:up": "docker compose up -d db mail",
     "db:migrate": "npm run migrate -w api",
     "db:seed": "npm run seed -w api",
     "db:seed:demo": "npm run seed:demo -w api",

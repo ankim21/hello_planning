@@ -22,7 +22,7 @@ Needs Node 24 and Docker.
 ```bash
 npm install
 cp apps/api/.env.example apps/api/.env   # then set JWT_SECRET and the admin password
-npm run db:up            # starts PostgreSQL in Docker, on port 5433
+npm run db:up            # starts PostgreSQL (port 5433) and a fake mailbox in Docker
 npm run db:migrate       # creates the tables
 npm run generate -w api  # generates the database client
 npm run db:seed          # 13 entities and sites, 9 posts, first administrator
@@ -40,6 +40,15 @@ npm test          # rules and rights tests
 With the demo seed: log in as `director@example.com`, and open `/kiosk` with
 the tablet code printed by the seed. All demo PINs are `1234`. `alice@example.com`
 (salle) and `bob@example.com` (kitchen) are plain employee logins, to try leave requests.
+
+## E-mail
+
+The app e-mails a link to choose a password, for new accounts and forgotten
+passwords. In development nothing leaves the machine: every e-mail lands in a
+fake mailbox at http://localhost:8025. In production, set `SMTP_URL`,
+`MAIL_FROM` and `APP_URL` in `apps/api/.env` with your provider's details.
+With `SMTP_URL` empty no e-mail is sent, and the administrator is shown a
+temporary password to pass on by hand.
 
 ## Where to change things
 

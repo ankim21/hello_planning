@@ -131,11 +131,35 @@ model User {
   id           String      @id @default(uuid())
   email        String      @unique
   passwordHash String
+  // True while the password is the temporary one given by an administrator.
+  mustChangePassword Boolean @default(false)
   isActive     Boolean     @default(true)
   employeeId   String?     @unique
   employee     Employee?   @relation(fields: [employeeId], references: [id])
   roleGrants   RoleGrant[]
+  passwordTokens PasswordToken[]
+  notifications  Notification[]
   createdAt    DateTime    @default(now())
+}
+
+// A one-time link sent by e-mail to choose a password: an invitation for a
+// new account, or a reset. Only the hash of the token is stored.
+enum PasswordTokenPurpose {
+  INVITE
+  RESET
+}
+
+model PasswordToken {
+  id        String               @id @default(uuid())
+  userId    String
+  user      User                 @relation(fields: [userId], references: [id])
+  tokenHash String               @unique
+  purpose   PasswordTokenPurpose
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime             @default(now())
+
+  @@index([userId])
 }
 
 enum Role {
@@ -378,6 +402,22 @@ model TimeEntry {
 
   @@unique([employeeId, clockInAt])
   @@index([siteId, date])
+}
+
+// ───────────── Notifications ─────────────
+
+// A message for one account, read inside the application (the bell).
+model Notification {
+  id        String    @id @default(uuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  title     String
+  body      String
+  link      String // where clicking it leads, inside the app
+  createdAt DateTime  @default(now())
+  readAt    DateTime?
+
+  @@index([userId, createdAt])
 }
 
 // ───────────── Audit ─────────────

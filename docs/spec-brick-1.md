@@ -32,7 +32,8 @@ difference between people is what they can change.
 | HR team | All sites | Planning and Badgeuse of the whole organisation | Absences, red payslip lock, leave requests of office and lab staff | Overview confirmed; the changes come from earlier answers, to reconfirm |
 | Administrator | All sites | Everything | Everything, plus tablets, PINs and posts | Proposed |
 
-Open: who administers tablets, PINs and posts.
+Accounts and roles are managed from the Comptes screen by administrators.
+Open: who, in the company, should hold the administrator role.
 
 The office has no planning and no time clock in brick 1, only absence requests.
 The lab is left out of brick 1.
@@ -181,7 +182,7 @@ except:
 ### 3.8 Notifications
 | ID | Requirement | Status |
 |---|---|---|
-| NOT-1 | Employees are notified by push and inside their account | Confirmed |
+| NOT-1 | Employees are notified inside their account (see 3.9d); push on the phone was mentioned earlier and is not built | Confirmed |
 | NOT-2 | Events notified: planning published, shift changed, request decided | Proposed |
 | NOT-3 | Web app (PWA) with push notifications | Confirmed |
 
@@ -207,6 +208,50 @@ except:
 | ME-11 | Employees see a week only once it is published; before that they see nothing of it | Confirmed |
 | ME-12 | The profile sub-tabs (Dossier RH, Mes documents, Notifications, Synchroniser le calendrier, Mon mot de passe) | Open |
 | ME-13 | Leave balances on the Congés screen | Open (waiting on the counter rules) |
+
+### 3.9b Accounts and roles
+| ID | Requirement | Status |
+|---|---|---|
+| ACC-1 | A screen to create accounts and assign roles | Confirmed |
+| ACC-2 | Only administrators of the whole organisation can use it | Proposed |
+| ACC-3 | A new account receives an e-mail with a one-time link to choose a password (valid 7 days). The password itself never travels by e-mail | Confirmed (by e-mail); the link rather than a password is Proposed |
+| ACC-10 | "Mot de passe oublié" on the login page sends a one-time link valid 1 hour, at most one every five minutes; the answer is the same whether or not the address has an account | Proposed |
+| ACC-11 | If no e-mail can be sent, the administrator is shown a temporary password to pass on by hand | Proposed |
+| ACC-12 | The e-mail provider to use in production (SMTP address and credentials) | Open |
+| ACC-4 | An account can be linked to an employee who has no account yet, or to nobody (office account) | Proposed |
+| ACC-5 | Chef, manager, site director and multi-site roles are given on one restaurant; ops, HR and administrator cover the whole organisation | Proposed |
+| ACC-6 | An account is deactivated, never deleted; an administrator can reset a password | Proposed |
+| ACC-7 | The last active administrator cannot be removed or deactivated, and nobody deactivates their own account | Proposed |
+| ACC-8 | Everyone can change their own password (current, new of 10 characters or more, confirmation) | Proposed |
+| ACC-9 | Creating employees, and setting a tablet PIN, from a screen | Open: employees are to come from PayFit; PINs have no screen yet |
+
+### 3.9c Planning alerts
+| ID | Requirement | Status |
+|---|---|---|
+| ALR-1 | The planning shows alerts for each employee's week; they warn and never block | Confirmed |
+| ALR-2 | Fewer than two consecutive days off in the week | Confirmed (HR payroll checks, P1) |
+| ALR-3 | More than 46 hours planned in the week | Confirmed 2026-11-17 |
+| ALR-4 | Less than 11 hours of rest between two days | Proposed (labour code); to validate for HCR |
+| ALR-5 | A shift planned on a day covered by an absence or a leave | Proposed |
+| ALR-6 | Alerts count the person's whole week, in every restaurant they work at | Proposed |
+| ALR-7 | Other HCR limits (daily maximum, amplitude, night work, minors), and hours against contract beyond the counter already shown | Open: to be listed and validated by HR |
+
+### 3.9d Notifications
+| ID | Requirement | Status |
+|---|---|---|
+| NTF-1 | Notifications are read inside the application, in the person's account (a bell in the header) | Confirmed |
+| NTF-2 | A department's week is published: the employees planned that week in that department | Proposed |
+| NTF-3 | A shift is added, changed or removed in a week already published: the employee concerned | Proposed |
+| NTF-4 | A leave request is made: the person who decides it, and the site director and multi-site manager | Confirmed for the multi-site manager |
+| NTF-5 | A leave request is approved or refused: the employee who asked | Proposed |
+| NTF-6 | The person who did the action is not notified of it | Proposed |
+| NTF-7 | Notifications outside the application (push on the phone, e-mail) | Not built |
+
+### 3.9e Pilot
+| ID | Decision | Status |
+|---|---|---|
+| PIL-1 | First roll-out: the planning, in one restaurant; no pay | Confirmed |
+| PIL-2 | Skello keeps running in parallel in that restaurant during the pilot | Confirmed |
 
 ### 3.10 Differences with the HR payroll spec (interviews of 15 Nov 2026)
 

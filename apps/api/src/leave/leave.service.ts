@@ -8,6 +8,7 @@ import {
 import { addDays, localDate, mondayOf, zonedDateTime } from '@skellobis/labor-rules';
 import type { SessionUser } from '../access/session.js';
 import { AuditService } from '../core/audit.service.js';
+import { frenchDate, NotifyService } from '../core/notify.service.js';
 import { PrismaService } from '../core/prisma.service.js';
 import { PlanningService } from '../planning/planning.service.js';
 import { canDecide, canSee, routeFor } from './leave.rules.js';
@@ -31,6 +32,7 @@ export class LeaveService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly planning: PlanningService,
+    private readonly notify: NotifyService,
   ) {}
 
   /** The absence types an employee is allowed to ask for. */
@@ -122,6 +124,36 @@ export class LeaveService {
       entityId: request.id,
       data: { ...input, route },
     });
+
+    // Everyone allowed to see the request is told: the person who decides,
+    // and the site director and multi-site manager for their overview.
+    const holders = await this.prisma.user.findMany({
+      where: {
+        isActive: true,
+        roleGrants: { some: { OR: [{ siteId: site.id }, { siteId: null }] } },
+      },
+      include: { roleGrants: true },
+    });
+    const period =
+      input.startDate === input.endDate
+        ? `le ${frenchDate(input.startDate)}`
+        : `du ${frenchDate(input.startDate)} au ${frenchDate(input.endDate)}`;
+    await this.notify.users(
+      holders
+        .filter((holder) =>
+          canSee(
+            holder.roleGrants.map(({ role, siteId }) => ({ role, siteId })),
+            { route, siteId: site.id },
+          ),
+        )
+        .map((holder) => holder.id),
+      {
+        title: 'Nouvelle demande de congé',
+        body: `${employee.firstName} ${employee.lastName} · ${type.name} ${period} · ${site.name}`,
+        link: '/demandes',
+      },
+      user.id,
+    );
     return { id: request.id };
   }
 
@@ -259,6 +291,14 @@ export class LeaveService {
       entity: 'LeaveRequest',
       entityId: id,
       data: { note: decision.decisionNote },
+    });
+    // The person who asked is told the answer.
+    await this.notify.employees([request.employeeId], {
+      title: approve ? 'Congé approuvé' : 'Congé refusé',
+      body:
+        `${frenchDate(fromDbDate(request.startDate))} → ${frenchDate(fromDbDate(request.endDate))}` +
+        (decision.decisionNote ? ` · « ${decision.decisionNote} »` : ''),
+      link: '/moi/conges',
     });
     return { ok: true };
   }

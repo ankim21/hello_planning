@@ -5,6 +5,7 @@
 import { type ReactNode, useEffect, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router'
 import { api, type InboxRequest, type Me, type Site } from '../api.ts'
+import { Bell } from './Bell.tsx'
 import { Logo } from './Logo.tsx'
 import { useMe } from './useMe.ts'
 
@@ -107,6 +108,11 @@ export function Shell({ siteId, section = 'planning', children }: Props) {
               Demandes{waiting > 0 && <span className="count">{waiting}</span>}
             </NavLink>
           )}
+          {/* Accounts and roles, for the administrators of the organisation. */}
+          {me.grants.some((grant) => grant.role === 'ADMIN' && grant.siteId === null) && (
+            <NavLink to="/comptes">Comptes</NavLink>
+          )}
+          <Bell />
           {/* The personal side: my week, my restaurants, my leave, my profile. */}
           <NavLink to="/moi" className="space-switch">
             Mon espace

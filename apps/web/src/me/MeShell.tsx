@@ -9,6 +9,7 @@
 import { type ReactNode, useEffect, useState } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router'
 import { api, ApiError, type MeOverview } from '../api.ts'
+import { Bell } from '../pages/Bell.tsx'
 import { Logo } from '../pages/Logo.tsx'
 import './me.css'
 import { Avatar, LeaveIcon, ProfileIcon, TeamIcon, WeekIcon } from './parts.tsx'
@@ -64,6 +65,7 @@ export function MeShell({ children }: { children: (me: MeOverview) => ReactNode 
         </nav>
 
         <span className="me-top-right">
+          <Bell />
           {me.hasManagement && (
             <Link to="/" className="space-switch">
               Gestion

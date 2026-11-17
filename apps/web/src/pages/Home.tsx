@@ -14,6 +14,11 @@ export function Home() {
 
   useEffect(() => {
     if (!me) return
+    // A temporary password is replaced before anything else.
+    if (me.mustChangePassword) {
+      navigate('/moi/profil', { replace: true })
+      return
+    }
     if (me.grants.length === 0) {
       navigate('/moi', { replace: true })
       return

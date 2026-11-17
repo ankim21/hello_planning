@@ -22,6 +22,7 @@ import {
   api,
   type Department,
   type LockStatus,
+  type PlanningAlert,
   type PlanningRow,
   type PlanningWeek,
   type ShiftCard,
@@ -296,6 +297,8 @@ function Board({ siteId }: { siteId: string }) {
 
       {error && <p className="error">{error}</p>}
 
+      <Alerts rows={data.rows} />
+
       <div className="planning-scroll panel">
         <table
           className={month ? 'planning month' : 'planning'}
@@ -425,6 +428,14 @@ function Board({ siteId }: { siteId: string }) {
                         ? 'Forfait jours'
                         : `${hours(row.contractMinutes)} / sem.`}
                     </span>
+                    {row.alerts.length > 0 && (
+                      <span
+                        className="alert-badge"
+                        title={row.alerts.map(alertText).join('\n')}
+                      >
+                        ⚠ {row.alerts.length} alerte{row.alerts.length > 1 ? 's' : ''}
+                      </span>
+                    )}
                   </th>
                   {data.days.map((day) =>
                     cell(
@@ -567,6 +578,50 @@ function Publication({
         ),
       )}
     </span>
+  )
+}
+
+/** One alert, as a sentence. Alerts warn; they never block the planning. */
+function alertText(alert: PlanningAlert): string {
+  const day = alert.date
+    ? dayLabel(alert.date, { weekday: 'long', day: 'numeric', month: 'short' })
+    : ''
+  switch (alert.kind) {
+    case 'REST_DAYS':
+      return 'Pas deux jours de repos consécutifs dans la semaine'
+    case 'WEEKLY_MAX':
+      return `${hours(alert.minutes ?? 0)} planifiées : plus de 46h dans la semaine`
+    case 'DAILY_REST':
+      return `Seulement ${hours(alert.minutes ?? 0)} de repos avant le ${day} (11h attendues)`
+    case 'SHIFT_ON_ABSENCE':
+      return `Shift planifié le ${day} malgré : ${alert.detail}`
+  }
+}
+
+/** The week's alerts, listed above the planning. Folded when there are many. */
+function Alerts({ rows }: { rows: PlanningRow[] }) {
+  const concerned = rows.filter((row) => row.alerts.length > 0)
+  const count = concerned.reduce((total, row) => total + row.alerts.length, 0)
+  if (count === 0) return null
+  return (
+    <details className="alerts" open={count <= 6}>
+      <summary>
+        ⚠ {count} alerte{count > 1 ? 's' : ''} sur cette semaine
+        <span className="muted"> — à vérifier, sans bloquer le planning</span>
+      </summary>
+      <ul>
+        {concerned.map((row) =>
+          row.alerts.map((alert, index) => (
+            <li key={row.employee.id + index}>
+              <strong>
+                {row.employee.firstName} {row.employee.lastName}
+              </strong>{' '}
+              · {alertText(alert)}
+            </li>
+          )),
+        )}
+      </ul>
+    </details>
   )
 }
 

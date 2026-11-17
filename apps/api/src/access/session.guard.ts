@@ -41,6 +41,7 @@ export class SessionGuard implements CanActivate {
       id: user.id,
       email: user.email,
       employeeId: user.employeeId,
+      mustChangePassword: user.mustChangePassword,
       grants: user.roleGrants.map(({ role, siteId }) => ({ role, siteId })),
     };
     request.user = sessionUser;

@@ -1,5 +1,5 @@
 import { type FormEvent, useState } from 'react'
-import { useNavigate } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import { api } from '../api.ts'
 import { Logo } from './Logo.tsx'
 
@@ -54,6 +54,7 @@ export function Login() {
         <button type="submit" disabled={busy}>
           Se connecter
         </button>
+        <Link to="/mot-de-passe-oublie">Mot de passe oublié ?</Link>
       </form>
     </main>
   )

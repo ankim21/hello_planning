@@ -2,10 +2,11 @@
  * Profil: who I am, then one card per restaurant I work at — the main one
  * first — with what is coming up there.
  */
-import { useEffect, useState } from 'react'
+import { type FormEvent, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { api, type MeOverview, type MyWeek } from '../api.ts'
 import { dayLabel, hours, mondayOf, today } from '../pages/dates.ts'
+import { ROLE_LABELS } from '../pages/roles.ts'
 import { MeShell } from './MeShell.tsx'
 import { Avatar, PinIcon, PostChip } from './parts.tsx'
 
@@ -54,14 +55,88 @@ function PhoneField({ initial }: { initial: string | null }) {
   )
 }
 
-const ROLE_LABELS: Record<string, string> = {
-  HEAD_CHEF: 'Chef de cuisine',
-  MANAGER: 'Manager',
-  SITE_DIRECTOR: 'Responsable de site',
-  MULTI_SITE_MANAGER: 'Responsable multisite',
-  HR: 'Ressources humaines',
-  OPS: 'Équipe opérationnelle',
-  ADMIN: 'Administrateur',
+/** Change my own password. Opens by itself while it is a temporary one. */
+function PasswordForm({ temporary }: { temporary: boolean }) {
+  const [open, setOpen] = useState(temporary)
+  const [current, setCurrent] = useState('')
+  const [next, setNext] = useState('')
+  const [again, setAgain] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [done, setDone] = useState(false)
+
+  async function submit(event: FormEvent) {
+    event.preventDefault()
+    setError(null)
+    try {
+      await api('/auth/change-password', {
+        method: 'POST',
+        body: { currentPassword: current, newPassword: next },
+      })
+      setDone(true)
+      setOpen(false)
+      setCurrent('')
+      setNext('')
+      setAgain('')
+    } catch (caught) {
+      setError((caught as Error).message)
+    }
+  }
+
+  return (
+    <section>
+      <h2 className="eyebrow">Mon mot de passe</h2>
+      {temporary && !done && (
+        <p className="unpublished-note">
+          Votre mot de passe est temporaire. Choisissez le vôtre pour continuer.
+        </p>
+      )}
+      {done && <p className="muted">Mot de passe modifié.</p>}
+      {!open ? (
+        <button onClick={() => setOpen(true)}>Changer mon mot de passe</button>
+      ) : (
+        <form className="password-form" onSubmit={submit}>
+          <label>
+            Mot de passe actuel
+            <input
+              type="password"
+              autoComplete="current-password"
+              required
+              value={current}
+              onChange={(event) => setCurrent(event.target.value)}
+            />
+          </label>
+          <label>
+            Nouveau mot de passe (10 caractères au moins)
+            <input
+              type="password"
+              autoComplete="new-password"
+              required
+              minLength={10}
+              value={next}
+              onChange={(event) => setNext(event.target.value)}
+            />
+          </label>
+          <label>
+            Nouveau mot de passe, une seconde fois
+            <input
+              type="password"
+              autoComplete="new-password"
+              required
+              value={again}
+              onChange={(event) => setAgain(event.target.value)}
+            />
+          </label>
+          {again !== '' && again !== next && (
+            <p className="error">Les deux mots de passe sont différents.</p>
+          )}
+          {error && <p className="error">{error}</p>}
+          <button type="submit" className="primary" disabled={next.length < 10 || next !== again}>
+            Enregistrer le mot de passe
+          </button>
+        </form>
+      )}
+    </section>
+  )
 }
 
 export function MyProfile() {
@@ -172,6 +247,8 @@ function Content({ me }: { me: MeOverview }) {
           )}
         </>
       )}
+
+      <PasswordForm temporary={me.mustChangePassword} />
 
       <section className="profile-actions">
         {me.hasManagement && (

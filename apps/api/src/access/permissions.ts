@@ -11,6 +11,7 @@ export type Action =
   | 'employee.setPin'
   | 'post.manage'
   | 'device.manage'
+  | 'account.manage'
   | 'shift.read'
   | 'shift.write'
   | 'planning.publish'
@@ -44,6 +45,9 @@ const ROLES_ALLOWED: Record<Action, Role[]> = {
   'employee.setPin': ['ADMIN'],
   'post.manage': ['ADMIN'],
   'device.manage': ['ADMIN'],
+  // Creating accounts and giving roles. Asked with no site, so it needs an
+  // administrator of the whole organisation.
+  'account.manage': ['ADMIN'],
   'shift.read': [
     'HEAD_CHEF',
     'MANAGER',

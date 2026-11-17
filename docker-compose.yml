@@ -12,5 +12,13 @@ services:
       - "127.0.0.1:5433:5432"
     volumes:
       - db-data:/var/lib/postgresql/data
+  # A fake mailbox for development: every e-mail the app sends lands here
+  # instead of going out. Read them at http://localhost:8025
+  mail:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:1025:1025" # SMTP, where the app sends
+      - "127.0.0.1:8025:8025" # the mailbox, in a browser
 volumes:
   db-data:

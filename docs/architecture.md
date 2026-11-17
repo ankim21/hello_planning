@@ -243,6 +243,12 @@ Built, checked against a running server and clicked through in a browser:
   by the multi-site manager, office and lab by HR; directors and the multi-site manager see all.
 - Mon espace, the personal side (phone first): Ma semaine across all restaurants with
   colleagues, the restaurant's line-up day by day, Congés, Profil by restaurant.
+- Comptes: administrators create accounts, assign roles per site or for the whole organisation,
+  send password links, deactivate. New accounts and forgotten passwords get a one-time link by
+  e-mail (SMTP; a fake mailbox in development). Everyone can change their own password.
+- Planning alerts (warnings only): two consecutive rest days, 46 hours a week, 11 hours of rest
+  between days, shift on an absence; computed over all the person's restaurants.
+- In-app notifications behind a bell: planning published, shift changed, leave requested and decided.
 - Last-minute problems: no cancelling in the app; each shift of the current week gives the
   phone number of the manager of the service (or the site director). Leave starts next week at the earliest.
 - Publication: kitchen and salle are published separately per week (head chef: kitchen;

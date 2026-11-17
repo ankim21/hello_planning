@@ -203,3 +203,7 @@ a.next-where:hover { text-decoration: underline; }
 .phone-field { display: flex; gap: 10px; }
 .phone-field input { flex: 1; min-width: 0; padding: 12px 14px; }
 .phone-note { margin: 10px 0 0; font-size: 0.86rem; }
+
+/* ── Profil: password ── */
+.password-form { display: flex; flex-direction: column; gap: 16px; }
+.password-form input { padding: 12px 14px; }

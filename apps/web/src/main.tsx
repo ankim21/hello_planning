@@ -6,10 +6,12 @@ import { Leave } from './me/Leave.tsx'
 import { MyProfile } from './me/MyProfile.tsx'
 import { MyWeek } from './me/MyWeek.tsx'
 import { Restaurant } from './me/Restaurant.tsx'
+import { Accounts } from './pages/Accounts.tsx'
 import { Badgeuse } from './pages/Badgeuse.tsx'
 import { Home } from './pages/Home.tsx'
 import { Kiosk } from './pages/Kiosk.tsx'
 import { Login } from './pages/Login.tsx'
+import { ForgotPassword, SetPassword } from './pages/Password.tsx'
 import { Planning } from './pages/Planning.tsx'
 import { Requests } from './pages/Requests.tsx'
 
@@ -23,6 +25,8 @@ createRoot(document.getElementById('root')!).render(
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/mot-de-passe-oublie" element={<ForgotPassword />} />
+        <Route path="/mot-de-passe" element={<SetPassword />} />
 
         <Route path="/moi" element={<MyWeek />} />
         <Route path="/moi/restaurant" element={<Restaurant />} />
@@ -34,6 +38,7 @@ createRoot(document.getElementById('root')!).render(
         <Route path="/sites/:siteId/planning" element={<Planning />} />
         <Route path="/sites/:siteId/badgeuse" element={<Badgeuse />} />
         <Route path="/demandes" element={<Requests />} />
+        <Route path="/comptes" element={<Accounts />} />
 
         <Route path="/kiosk" element={<Kiosk />} />
       </Routes>

@@ -4,7 +4,7 @@
  * app with; then the week, day by day.
  */
 import { type CSSProperties, useEffect, useState } from 'react'
-import { Link, Navigate } from 'react-router'
+import { Link, Navigate, useSearchParams } from 'react-router'
 import { api, type MeOverview, type MyDay, type MyShift, type MyWeek as Week } from '../api.ts'
 import { capitalise, dayLabel, hours, mondayOf, today } from '../pages/dates.ts'
 import { MeShell } from './MeShell.tsx'
@@ -15,7 +15,13 @@ export function MyWeek() {
 }
 
 function Content({ me }: { me: MeOverview }) {
-  const [monday, setMonday] = useState(() => mondayOf(today()))
+  // A notification can open a given week: /moi?semaine=2026-11-23
+  const [params] = useSearchParams()
+  const asked = params.get('semaine')
+  const [monday, setMonday] = useState(() => mondayOf(asked ?? today()))
+  useEffect(() => {
+    if (asked) setMonday(mondayOf(asked))
+  }, [asked])
   const [week, setWeek] = useState<Week | null>(null)
   const [open, setOpen] = useState<string | null>(null) // the shift whose team is unfolded
   const [problem, setProblem] = useState<MyShift | null>(null) // "I cannot come"

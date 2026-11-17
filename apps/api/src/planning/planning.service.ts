@@ -8,7 +8,9 @@ import {
   addDays,
   localDate,
   localTime,
+  mondayOf,
   plannedMinutes,
+  planningAlerts,
   shiftInstants,
   zonedDateTime,
 } from '@skellobis/labor-rules';
@@ -17,6 +19,7 @@ import { can } from '../access/permissions.js';
 import { canSee } from '../leave/leave.rules.js';
 import type { SessionUser } from '../access/session.js';
 import { AuditService } from '../core/audit.service.js';
+import { frenchDate, NotifyService } from '../core/notify.service.js';
 import { PrismaService } from '../core/prisma.service.js';
 import { DEPARTMENTS, PublicationService } from './publication.service.js';
 import type { DayLockStatus, Department } from '../generated/prisma/enums.js';
@@ -57,6 +60,7 @@ export class PlanningService {
     private readonly access: AccessService,
     private readonly audit: AuditService,
     private readonly publications: PublicationService,
+    private readonly notify: NotifyService,
   ) {}
 
   // ───────────── Planning view ─────────────
@@ -148,6 +152,20 @@ export class PlanningService {
       ? shifts
       : shifts.filter((shift) => shiftIsPublished({ ...shift, site }));
 
+    // Alerts are per week and for the people who plan. They look at the
+    // person's whole week, in every restaurant, plus the day before for the
+    // rest before Monday.
+    const withAlerts = length === 7 && seesAbsenceTypes;
+    const everywhere = withAlerts
+      ? await this.prisma.shift.findMany({
+          where: {
+            employeeId: { in: employees.map((employee) => employee.id) },
+            startsAt: { gte: new Date(from.getTime() - DAY), lt: to },
+          },
+          include: { site: true },
+        })
+      : [];
+
     const shiftCards = visibleShifts.map((shift) => ({
       id: shift.id,
       employeeId: shift.employeeId,
@@ -201,6 +219,26 @@ export class PlanningService {
             endTime: absence.endTime,
             note: absence.note,
           })),
+        alerts: withAlerts
+          ? planningAlerts(
+              monday,
+              everywhere
+                .filter((shift) => shift.employeeId === employee.id)
+                .map((shift) => ({
+                  date: localDate(shift.startsAt, shift.site.timezone),
+                  startsAt: shift.startsAt,
+                  endsAt: shift.endsAt,
+                  minutes: plannedMinutes(shift.startsAt, shift.endsAt, shift.breakMinutes),
+                })),
+              absences
+                .filter((absence) => absence.employeeId === employee.id)
+                .map((absence) => ({
+                  startDate: fromDbDate(absence.startDate),
+                  endDate: fromDbDate(absence.endDate),
+                  typeName: absence.type.name,
+                })),
+            )
+          : [],
         requests: pendingRequests
           // Only for the people allowed to see that request.
           .filter(
@@ -259,7 +297,65 @@ export class PlanningService {
       entityId: siteId,
       data: { week: monday, department },
     });
+    if (published) await this.announcePublication(user, siteId, monday, department);
     return { week: monday, department, published };
+  }
+
+  /** Tells the people planned that week, in that department, that they can look. */
+  private async announcePublication(
+    user: SessionUser,
+    siteId: string,
+    monday: string,
+    department: Department,
+  ) {
+    const site = await this.siteOrThrow(siteId);
+    const planned = await this.prisma.shift.findMany({
+      where: {
+        siteId,
+        post: { department },
+        startsAt: {
+          gte: zonedDateTime(monday, '00:00', site.timezone),
+          lt: zonedDateTime(addDays(monday, 7), '00:00', site.timezone),
+        },
+      },
+      select: { employeeId: true },
+    });
+    await this.notify.employees(
+      planned.map((shift) => shift.employeeId),
+      {
+        title: 'Planning publié',
+        body: `${site.name} · semaine du ${frenchDate(monday)}`,
+        link: `/moi?semaine=${monday}`,
+      },
+      user.id,
+    );
+  }
+
+  /**
+   * Tells an employee that a shift of theirs changed, when the week is
+   * already published (before that they cannot see it anyway).
+   */
+  private async announceShiftChange(
+    user: SessionUser,
+    shift: { employeeId: string; siteId: string; startsAt: Date; postId: string },
+    what: 'ajouté' | 'modifié' | 'supprimé',
+  ) {
+    const [site, post] = await Promise.all([
+      this.siteOrThrow(shift.siteId),
+      this.prisma.post.findUniqueOrThrow({ where: { id: shift.postId } }),
+    ]);
+    const { shiftIsPublished } = await this.publications.visibility([shift.siteId]);
+    if (!shiftIsPublished({ ...shift, site, post })) return;
+    const day = localDate(shift.startsAt, site.timezone);
+    await this.notify.employees(
+      [shift.employeeId],
+      {
+        title: `Shift ${what}`,
+        body: `${site.name} · ${frenchDate(day)}`,
+        link: `/moi?semaine=${mondayOf(day)}`,
+      },
+      user.id,
+    );
   }
 
   // ───────────── Shifts ─────────────
@@ -276,6 +372,7 @@ export class PlanningService {
       entityId: shift.id,
       data: input,
     });
+    await this.announceShiftChange(user, shift, 'ajouté');
     return { id: shift.id };
   }
 
@@ -286,7 +383,7 @@ export class PlanningService {
     await this.assertDayOpen(siteId, localDate(before.startsAt, before.site.timezone));
 
     const data = await this.checkShift(user, siteId, input, id);
-    await this.prisma.shift.update({ where: { id }, data });
+    const after = await this.prisma.shift.update({ where: { id }, data });
     await this.audit.record({
       actorUserId: user.id,
       action: 'shift.update',
@@ -294,6 +391,11 @@ export class PlanningService {
       entityId: id,
       data: input,
     });
+    await this.announceShiftChange(user, after, 'modifié');
+    // Moved to someone else: the first person loses the shift.
+    if (before.employeeId !== after.employeeId) {
+      await this.announceShiftChange(user, before, 'supprimé');
+    }
     return { id };
   }
 
@@ -315,6 +417,7 @@ export class PlanningService {
         endsAt: shift.endsAt,
       },
     });
+    await this.announceShiftChange(user, shift, 'supprimé');
     return { ok: true };
   }
 

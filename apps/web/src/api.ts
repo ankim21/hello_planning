@@ -70,6 +70,8 @@ export interface Me {
   id: string
   email: string
   employeeId: string | null
+  /** Still on the temporary password given by an administrator. */
+  mustChangePassword: boolean
   grants: Grant[]
 }
 export interface Site {
@@ -183,6 +185,12 @@ export interface AbsenceCard {
   endTime: string | null
   note: string | null
 }
+export interface PlanningAlert {
+  kind: 'REST_DAYS' | 'WEEKLY_MAX' | 'DAILY_REST' | 'SHIFT_ON_ABSENCE'
+  date?: string
+  minutes?: number
+  detail?: string
+}
 export interface PlanningRow {
   employee: Person
   contractMinutes: number | null
@@ -190,6 +198,8 @@ export interface PlanningRow {
   differenceMinutes: number | null
   shifts: ShiftCard[]
   absences: AbsenceCard[]
+  /** Warnings about this person's week; they never block. */
+  alerts: PlanningAlert[]
   /** Leave requests still waiting for a decision. */
   requests: { id: string; typeName: string; startDate: string; endDate: string }[]
 }
@@ -248,6 +258,8 @@ export interface MySite {
 }
 export interface MeOverview {
   email: string
+  /** Still on the temporary password given by an administrator. */
+  mustChangePassword: boolean
   grants: Grant[]
   /** True for people who also have the management screens. */
   hasManagement: boolean
@@ -321,4 +333,20 @@ export interface SiteWeek {
   site: { id: string; name: string }
   published: PublishedState
   days: { date: string; lines: SiteLine[] }[]
+}
+
+// ───────────── Accounts and roles (administrators) ─────────────
+
+export interface Account {
+  id: string
+  email: string
+  isActive: boolean
+  /** Still on the temporary password given by an administrator. */
+  mustChangePassword: boolean
+  employee: Person | null
+  grants: { id: string; role: string; site: { id: string; name: string } | null }[]
+}
+export interface AccountOptions {
+  sites: { id: string; name: string }[]
+  employeesWithoutAccount: Person[]
 }

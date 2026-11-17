@@ -8,6 +8,8 @@ export interface SessionUser {
   id: string;
   email: string;
   employeeId: string | null;
+  /** Still on the temporary password given by an administrator. */
+  mustChangePassword: boolean;
   grants: Grant[];
 }
 
