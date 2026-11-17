@@ -256,3 +256,7 @@ ul.absences { padding: 14px 4px 4px; gap: 10px; }
 .card:disabled:hover { border-color: transparent; border-left-color: var(--post, var(--muted)); }
 .lock:disabled { opacity: 1; cursor: default; }
 .badge-table.readonly input { pointer-events: none; background: none; border-color: transparent; }
+
+/* Planning: publication state */
+.chip.draft { border-color: #f59e0b; color: var(--text); background: color-mix(in srgb, #f59e0b 14%, var(--surface)); }
+.chip.published { border-color: #16a34a; color: var(--text); background: color-mix(in srgb, #16a34a 14%, var(--surface)); }

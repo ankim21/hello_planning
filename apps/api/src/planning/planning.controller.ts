@@ -48,6 +48,10 @@ const absenceSchema = z.object({
   note: z.string().max(500).optional(),
 });
 
+const publicationSchema = z.object({
+  department: z.enum(['KITCHEN', 'SALLE']),
+  published: z.boolean(),
+});
 const lockSchema = z.object({ status: z.enum(['OPEN', 'LOCKED', 'PAYROLL']) });
 
 /** The weekly planning of a site: shifts, absences and day locks. */
@@ -126,6 +130,17 @@ export class PlanningController {
     @Param('id') id: string,
   ) {
     return this.planning.deleteAbsence(user, siteId, id);
+  }
+
+  @Put('weeks/:monday/publication')
+  setPublication(
+    @CurrentUser() user: SessionUser,
+    @Param('siteId') siteId: string,
+    @Param('monday', { schema: date }) monday: string,
+    @Body({ schema: publicationSchema })
+    { department, published }: z.infer<typeof publicationSchema>,
+  ) {
+    return this.planning.setPublication(user, siteId, monday, department, published);
   }
 
   @Put('days/:date/lock')

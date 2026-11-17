@@ -1,6 +1,6 @@
 /**
- * The frame around every logged-in page: logo and name, the site menu, and
- * the three tabs (Planning, Badgeuse, Mon profil).
+ * The frame around the management screens: logo and name, the site menu, the
+ * tabs (Planning, Badgeuse, Demandes) and a link to the personal side.
  */
 import { type ReactNode, useEffect, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router'
@@ -107,7 +107,10 @@ export function Shell({ siteId, section = 'planning', children }: Props) {
               Demandes{waiting > 0 && <span className="count">{waiting}</span>}
             </NavLink>
           )}
-          <NavLink to="/profil">Mon profil</NavLink>
+          {/* The personal side: my week, my restaurants, my leave, my profile. */}
+          <NavLink to="/moi" className="space-switch">
+            Mon espace
+          </NavLink>
         </nav>
       </header>
       {children({ me, sites })}

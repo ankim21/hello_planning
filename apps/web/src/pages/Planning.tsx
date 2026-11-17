@@ -20,6 +20,7 @@ import { Link, useParams } from 'react-router'
 import {
   type AbsenceCard,
   api,
+  type Department,
   type LockStatus,
   type PlanningRow,
   type PlanningWeek,
@@ -99,6 +100,21 @@ function Board({ siteId }: { siteId: string }) {
     setLockMenu(null)
     try {
       await api(`/sites/${siteId}/days/${date}/lock`, { method: 'PUT', body: { status } })
+      load()
+    } catch (caught) {
+      setError((caught as Error).message)
+    }
+  }
+
+  /** Shows kitchen and/or salle to the staff for this week, or hides them again. */
+  async function setPublished(departments: Department[], published: boolean) {
+    try {
+      for (const department of departments) {
+        await api(`/sites/${siteId}/weeks/${from}/publication`, {
+          method: 'PUT',
+          body: { department, published },
+        })
+      }
       load()
     } catch (caught) {
       setError((caught as Error).message)
@@ -260,6 +276,16 @@ function Board({ siteId }: { siteId: string }) {
             Mois
           </button>
         </span>
+
+        {/* Kitchen and salle are published separately, week by week: the
+            staff see nothing of a department before it is published. */}
+        {!month && data.publication && (
+          <Publication
+            publication={data.publication}
+            mayPublish={rights.publish}
+            onChange={setPublished}
+          />
+        )}
 
         <span className="muted hint">
           {rights.editShifts
@@ -492,6 +518,55 @@ function Board({ siteId }: { siteId: string }) {
         />
       )}
     </main>
+  )
+}
+
+const DEPARTMENT_LABELS: Record<Department, string> = { KITCHEN: 'la cuisine', SALLE: 'la salle' }
+
+/** The publication state of the week, and the buttons this person may use. */
+function Publication({
+  publication,
+  mayPublish,
+  onChange,
+}: {
+  publication: Record<Department, string | null>
+  mayPublish: Department[]
+  onChange: (departments: Department[], published: boolean) => void
+}) {
+  const departments: Department[] = ['SALLE', 'KITCHEN']
+  const published = departments.filter((department) => publication[department])
+  const pending = mayPublish.filter((department) => !publication[department])
+  const state =
+    published.length === 2
+      ? 'Publié'
+      : published.length === 1
+        ? `Partiellement publié : ${DEPARTMENT_LABELS[published[0]]} seulement`
+        : 'Non publié — invisible pour les salariés'
+  return (
+    <span className="period">
+      <span className={published.length === 2 ? 'chip published' : 'chip draft'}>{state}</span>
+      {/* Someone who may publish both gets one button for the whole week. */}
+      {pending.length === 2 && (
+        <button className="primary" onClick={() => onChange(pending, true)}>
+          Publier la semaine
+        </button>
+      )}
+      {mayPublish.map((department) =>
+        publication[department] ? (
+          <button key={department} onClick={() => onChange([department], false)}>
+            Dépublier {DEPARTMENT_LABELS[department]}
+          </button>
+        ) : (
+          <button
+            key={department}
+            className={pending.length === 2 ? '' : 'primary'}
+            onClick={() => onChange([department], true)}
+          >
+            Publier {DEPARTMENT_LABELS[department]}
+          </button>
+        ),
+      )}
+    </span>
   )
 }
 

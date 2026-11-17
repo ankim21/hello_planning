@@ -241,11 +241,15 @@ Built, checked against a running server and clicked through in a browser:
 - Badgeuse: validate, correct with a reason, add hours by hand, undo; every change in the audit log.
 - Leave requests: employee form in Mon profil; decided by the site director only (multi-site
   manager for a director's own request, HR for office and lab); Demandes tab for deciders only.
+- Mon espace, the personal side (phone first): Ma semaine across all restaurants with
+  colleagues, the restaurant's line-up day by day, Congés, Profil by restaurant.
+- Publication: kitchen and salle are published separately per week (head chef: kitchen;
+  site director: either). Employees see nothing of a department before that.
 - Badgeuse by day: one line per planned shift, editable paid hours and meals, validate a line
   or the whole day, week list with a tick per validated day.
 - Planning a shift during an arrêt maladie is refused; a locked day cannot be edited.
 
-Not built yet: publication to employees, HCR alerts, shift-swap requests, absence counters,
+Not built yet: HCR alerts, shift-swap requests, absence counters,
 notifications, offline mode on the tablet, PayFit sync, the employee's own
 view, production deployment.
 

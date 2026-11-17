@@ -11,7 +11,7 @@ In-house replacement for Skello (project folder: Skellobis). Brick 1: planning a
 |---|---|
 | `apps/api` | The server (NestJS). One folder per area in `src/`: `auth`, `access`, `org`, `people`, `devices`, `planning`, `timeclock`. |
 | `apps/api/prisma` | The database model (`schema.prisma`), its migrations, and the seeds. |
-| `apps/web` | The web app (React), in French: Planning (week, month, by post), Badgeuse, Mon profil, and the tablet at `/kiosk`. |
+| `apps/web` | The web app (React), in French. `src/pages`: the management screens (Planning, Badgeuse, Demandes) and the tablet at `/kiosk`. `src/me`: Mon espace, the personal side for every employee. |
 | `packages/labor-rules` | The hours rules as plain functions with tests. No database, no server. |
 | `docs` | Spec, architecture, reference data. |
 

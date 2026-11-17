@@ -60,6 +60,12 @@ export function addDays(date: string, days: number): string {
   return result.toISOString().slice(0, 10);
 }
 
+/** The Monday of the week that contains a YYYY-MM-DD date. */
+export function mondayOf(date: string): string {
+  const weekday = (new Date(`${date}T00:00:00.000Z`).getUTCDay() + 6) % 7;
+  return addDays(date, -weekday);
+}
+
 /**
  * Start and end instants of a shift given as wall-clock times on one day.
  * An end at or before the start means the shift finishes after midnight:

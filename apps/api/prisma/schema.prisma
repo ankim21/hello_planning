@@ -40,6 +40,7 @@ model Site {
   dayLocks      DayLock[]
   timeEntries   TimeEntry[]
   leaveRequests LeaveRequest[]
+  publications  Publication[]
 }
 
 enum Department {
@@ -194,6 +195,20 @@ model Shift {
 
   @@index([siteId, startsAt])
   @@index([employeeId, startsAt])
+}
+
+// One department (kitchen or salle) of one week of a site, made visible to
+// the staff. The head chef publishes the kitchen; the site director either.
+// Until then only people with a role see those shifts.
+model Publication {
+  siteId        String
+  site          Site       @relation(fields: [siteId], references: [id])
+  weekStart     DateTime   @db.Date // the Monday
+  department    Department
+  publishedById String
+  publishedAt   DateTime   @default(now())
+
+  @@id([siteId, weekStart, department])
 }
 
 // The lock shown next to each day of the planning. No row = open (grey).

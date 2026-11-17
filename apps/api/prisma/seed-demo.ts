@@ -3,7 +3,7 @@
  * shifts at one site, so the time clock can be tried without PayFit.
  * Refuses to run in production. Run after the main seed: npm run db:seed:demo
  */
-import { localDate, zonedDateTime } from '@skellobis/labor-rules';
+import { addDays, localDate, zonedDateTime } from '@skellobis/labor-rules';
 import { hashSecret } from '../src/auth/password.js';
 import { hashDeviceToken } from '../src/devices/device.guard.js';
 import { createClient } from './client.js';
@@ -131,6 +131,7 @@ async function employeeLogins() {
       },
     });
   }
+  await secondRestaurant();
   // Two office accounts, not linked to an employee: the operations team sees
   // every site; the multi-site manager runs this one (and would run others).
   const site = await prisma.site.findUniqueOrThrow({ where: { name: SITE } });
@@ -147,6 +148,33 @@ async function employeeLogins() {
       },
     });
   }
+}
+
+/** Alice also works at a second restaurant, to show a week across two sites. */
+async function secondRestaurant() {
+  const alice = await prisma.employee.findFirstOrThrow({ where: { lastName: 'Démo' } });
+  const other = await prisma.site.findUniqueOrThrow({ where: { name: 'Gros Bao Paris' } });
+  const already = await prisma.siteAssignment.findUnique({
+    where: { employeeId_siteId: { employeeId: alice.id, siteId: other.id } },
+  });
+  if (already) return;
+  await prisma.siteAssignment.create({ data: { employeeId: alice.id, siteId: other.id } });
+  const admin = await prisma.user.findFirstOrThrow({
+    where: { roleGrants: { some: { role: 'ADMIN' } } },
+  });
+  const runner = await prisma.post.findUniqueOrThrow({ where: { name: 'Runner' } });
+  const day = addDays(localDate(new Date(), other.timezone), 2);
+  await prisma.shift.create({
+    data: {
+      siteId: other.id,
+      employeeId: alice.id,
+      postId: runner.id,
+      service: 'PM',
+      startsAt: zonedDateTime(day, '18:30', other.timezone),
+      endsAt: zonedDateTime(addDays(day, 1), '00:00', other.timezone),
+      createdById: admin.id,
+    },
+  });
 }
 
 await main().finally(() => prisma.$disconnect());

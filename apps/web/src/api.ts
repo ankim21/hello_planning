@@ -152,6 +152,9 @@ export interface BadgeDay {
 
 // ───────────── Planning ─────────────
 
+export type Department = 'KITCHEN' | 'SALLE'
+/** How much of a restaurant's week the staff can see. */
+export type PublishedState = 'ALL' | 'PARTIAL' | 'NONE'
 export type LockStatus = 'OPEN' | 'LOCKED' | 'PAYROLL'
 export interface ShiftCard {
   id: string
@@ -193,7 +196,15 @@ export interface PlanningRow {
 export interface PlanningWeek {
   site: { id: string; name: string }
   /** What the logged-in user may change; everyone may look. */
-  rights: { editShifts: boolean; editAbsences: boolean; lock: boolean }
+  rights: {
+    editShifts: boolean
+    editAbsences: boolean
+    lock: boolean
+    /** The departments this person may publish. */
+    publish: Department[]
+  }
+  /** When each department was published for the staff; only given for a week. */
+  publication: Record<Department, string | null> | null
   days: { date: string; lock: LockStatus; people: number; minutes: number }[]
   rows: PlanningRow[]
   totalMinutes: number
@@ -224,4 +235,84 @@ export interface LeaveRequest {
 export interface InboxRequest extends LeaveRequest {
   plannedShifts: number
   canDecide: boolean
+}
+
+// ───────────── Mon espace (the employee's own view) ─────────────
+
+export interface MySite {
+  id: string
+  name: string
+  type: 'RESTAURANT' | 'LAB' | 'OFFICE'
+  isPrimary: boolean
+  nextShift: { date: string; start: string; end: string; postName: string } | null
+}
+export interface MeOverview {
+  email: string
+  grants: Grant[]
+  /** True for people who also have the management screens. */
+  hasManagement: boolean
+  employee: {
+    id: string
+    firstName: string
+    lastName: string
+    contractMinutes: number | null
+    forfaitJours: boolean
+    sites: MySite[]
+    posts: { id: string; name: string; color: string; department: 'KITCHEN' | 'SALLE' }[]
+  } | null
+}
+export interface Coworker extends Person {
+  postName: string
+  color: string
+}
+export interface MyShift {
+  id: string
+  date: string
+  start: string
+  end: string
+  site: { id: string; name: string }
+  postName: string
+  service: 'AM' | 'PM'
+  color: string
+  minutes: number
+  coworkers: Coworker[]
+}
+export interface MyDay {
+  date: string
+  shifts: MyShift[]
+  absences: {
+    id: string
+    typeName: string
+    dayPart: 'FULL_DAY' | 'HALF_DAY' | 'CUSTOM'
+    startTime: string | null
+    endTime: string | null
+  }[]
+  requests: { id: string; typeName: string }[]
+}
+export interface MyWeek {
+  from: string
+  days: MyDay[]
+  totalMinutes: number
+  contractMinutes: number | null
+  bySite: { site: { id: string; name: string }; shifts: number; minutes: number }[]
+  /** My restaurants, and whether each has published this week. */
+  sites: { id: string; name: string; published: PublishedState }[]
+  nextShift: MyShift | null
+}
+export interface SiteLine {
+  id: string
+  date: string
+  start: string
+  end: string
+  service: 'AM' | 'PM'
+  postName: string
+  color: string
+  department: 'KITCHEN' | 'SALLE'
+  employee: Person
+  isMe: boolean
+}
+export interface SiteWeek {
+  site: { id: string; name: string }
+  published: PublishedState
+  days: { date: string; lines: SiteLine[] }[]
 }

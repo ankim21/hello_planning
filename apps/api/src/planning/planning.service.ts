@@ -18,7 +18,8 @@ import { canDecide } from '../leave/leave.rules.js';
 import type { SessionUser } from '../access/session.js';
 import { AuditService } from '../core/audit.service.js';
 import { PrismaService } from '../core/prisma.service.js';
-import type { DayLockStatus } from '../generated/prisma/enums.js';
+import { DEPARTMENTS, PublicationService } from './publication.service.js';
+import type { DayLockStatus, Department } from '../generated/prisma/enums.js';
 
 /** A shift as the planner types it: wall-clock times on one day at the site. */
 export interface ShiftInput {
@@ -54,6 +55,7 @@ export class PlanningService {
     private readonly prisma: PrismaService,
     private readonly access: AccessService,
     private readonly audit: AuditService,
+    private readonly publications: PublicationService,
   ) {}
 
   // ───────────── Planning view ─────────────
@@ -71,7 +73,14 @@ export class PlanningService {
       lock:
         can(user.grants, 'day.lock', siteId) ||
         can(user.grants, 'day.payrollLock', siteId),
+      // The departments this person may publish: kitchen for a head chef,
+      // both for a site director.
+      publish: DEPARTMENTS.filter((department) =>
+        can(user.grants, 'planning.publish', siteId, department),
+      ),
     };
+    // Publication is per week, so it is only reported for the week view.
+    const publication = length === 7 ? await this.publications.ofWeek(siteId, monday) : null;
     // A plain employee sees that a colleague is absent, not why: the reason
     // (an arrêt maladie, for example) is personal.
     const seesAbsenceTypes = can(user.grants, 'shift.read', siteId);
@@ -134,7 +143,13 @@ export class PlanningService {
       include: { type: true },
     });
 
-    const shiftCards = shifts.map((shift) => ({
+    // Employees without a role only see the weeks that have been published.
+    const { shiftIsPublished } = await this.publications.visibility([siteId]);
+    const visibleShifts = seesAbsenceTypes
+      ? shifts
+      : shifts.filter((shift) => shiftIsPublished({ ...shift, site }));
+
+    const shiftCards = visibleShifts.map((shift) => ({
       id: shift.id,
       employeeId: shift.employeeId,
       date: localDate(shift.startsAt, site.timezone),
@@ -211,12 +226,36 @@ export class PlanningService {
     return {
       site: { id: site.id, name: site.name },
       rights,
+      publication,
       days,
       rows,
       totalMinutes: days.reduce((sum, day) => sum + day.minutes, 0),
       posts,
       absenceTypes: absenceTypes.map(({ id, name, category }) => ({ id, name, category })),
     };
+  }
+
+  // ───────────── Publication ─────────────
+
+  /** Makes one department of a week visible to the staff, or hides it again. */
+  async setPublication(
+    user: SessionUser,
+    siteId: string,
+    monday: string,
+    department: Department,
+    published: boolean,
+  ) {
+    await this.siteOrThrow(siteId);
+    this.access.assert(user, 'planning.publish', siteId, department);
+    await this.publications.set(siteId, monday, department, published, user.id);
+    await this.audit.record({
+      actorUserId: user.id,
+      action: published ? 'planning.publish' : 'planning.unpublish',
+      entity: 'Site',
+      entityId: siteId,
+      data: { week: monday, department },
+    });
+    return { week: monday, department, published };
   }
 
   // ───────────── Shifts ─────────────

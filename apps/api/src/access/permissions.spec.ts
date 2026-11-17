@@ -64,6 +64,13 @@ describe('can', () => {
     }
   });
 
+  it('lets the head chef publish the kitchen only, the director both', () => {
+    expect(can(on('HEAD_CHEF', 'a'), 'planning.publish', 'a', 'KITCHEN')).toBe(true);
+    expect(can(on('HEAD_CHEF', 'a'), 'planning.publish', 'a', 'SALLE')).toBe(false);
+    expect(can(on('SITE_DIRECTOR', 'a'), 'planning.publish', 'a', 'SALLE')).toBe(true);
+    expect(can(on('MANAGER', 'a'), 'planning.publish', 'a', 'SALLE')).toBe(false);
+  });
+
   it('refuses everything without a grant', () => {
     expect(can([], 'employee.read', 'a')).toBe(false);
   });

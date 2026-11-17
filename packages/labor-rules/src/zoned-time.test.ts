@@ -25,7 +25,15 @@ describe('localDate', () => {
   });
 });
 
-import { plannedMinutes, shiftInstants } from './zoned-time.js';
+import { mondayOf, plannedMinutes, shiftInstants } from './zoned-time.js';
+
+describe('mondayOf', () => {
+  it('finds the Monday of any day of the week', () => {
+    expect(mondayOf('2026-11-16')).toBe('2026-11-16'); // a Monday
+    expect(mondayOf('2026-11-22')).toBe('2026-11-16'); // the Sunday after
+    expect(mondayOf('2026-11-23')).toBe('2026-11-23');
+  });
+});
 
 describe('shiftInstants', () => {
   it('ends the next day when the shift crosses midnight', () => {

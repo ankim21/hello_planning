@@ -69,7 +69,10 @@ The lab is left out of brick 1.
 |---|---|---|
 | PLN-1 | The site director builds the restaurant planning; the head chef (or pass master) builds the kitchen planning | Confirmed |
 | PLN-11 | Each post belongs to a department (kitchen or front of house); planning rights are granted per department | Proposed |
-| PLN-12 | Publication once per site, or separately per department | Open |
+| PLN-12 | Kitchen and salle are published separately, week by week. The head chef publishes the kitchen; the site director (or multi-site manager) publishes either or both | Confirmed |
+| PLN-34 | An employee sees a shift once its department is published for that week; a week with one department published shows as "Partiellement publié" | Confirmed |
+| PLN-32 | A published week shows changes made afterwards immediately; it can be unpublished | Proposed |
+| PLN-33 | Telling employees that a week was published or changed (push notification) | Open |
 | PLN-2 | Alerts follow IDCC 1979 (HCR); exact list to come | Open |
 | PLN-3 | All alerts warn only and never block publication | Confirmed |
 | PLN-4 | An employee cannot be planned during an arrêt maladie; this blocks | Confirmed |
@@ -176,6 +179,23 @@ except:
 | NOT-1 | Employees are notified by push and inside their account | Confirmed |
 | NOT-2 | Events notified: planning published, shift changed, request decided | Proposed |
 | NOT-3 | Web app (PWA) with push notifications | Confirmed |
+
+### 3.9 Mon espace (the employee's own side)
+| ID | Requirement | Status |
+|---|---|---|
+| ME-1 | Two spaces behind one login: Mon espace (personal) for everyone who works shifts, Gestion for people with a role, with a switch between them | Proposed |
+| ME-2 | The personal side is not for clocking: it shows one's planning, lets one ask for leave, and shows who one works with | Confirmed |
+| ME-3 | Ma semaine: all of one's activity for the week, across every restaurant, with post and hours | Confirmed |
+| ME-4 | Each shift shows the colleagues working at the same restaurant during the same hours | Confirmed |
+| ME-5 | The next shift is shown first, before the week | Proposed |
+| ME-6 | Restaurant: the planning of one of one's restaurants for the week, read one day at a time (service, then salle and cuisine) | Confirmed (the view); the day-by-day layout is Proposed |
+| ME-7 | Profil organises the information by restaurant: one card per restaurant worked at, the main one first | Confirmed |
+| ME-8 | An employee has a list of restaurants and one main restaurant | Confirmed |
+| ME-9 | Congés: ask for days off and follow the answer | Confirmed |
+| ME-10 | Colleagues' absences are not shown on the personal side | Proposed |
+| ME-11 | Employees see a week only once it is published; before that they see nothing of it | Confirmed |
+| ME-12 | The profile sub-tabs (Dossier RH, Mes documents, Notifications, Synchroniser le calendrier, Mon mot de passe) | Open |
+| ME-13 | Leave balances on the Congés screen | Open (waiting on the counter rules) |
 
 ## 4. What would close most of the open items
 
