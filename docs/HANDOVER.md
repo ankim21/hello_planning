@@ -1,7 +1,8 @@
 # PLANetBAO — Handover
 
-Written 2026-11-17, at commit `f4d0dbf`. For an agent or developer taking the
-project over with no access to the conversations that produced it.
+Written 2026-11-17 and brought up to date the same evening, after commit
+`72f19bc`. For an agent or developer taking the project over with no access
+to the conversations that produced it.
 
 Read this first, then the three documents it points to:
 
@@ -11,8 +12,10 @@ Read this first, then the three documents it points to:
 | [spec-brick-1.md](spec-brick-1.md) | Every requirement, tagged Confirmed / Proposed / Open | What was asked, and what is still undecided |
 | [architecture.md](architecture.md) | Stack, module boundaries, design principles | How it is built and why |
 
-`workflows.md` section 9 onwards predates the last commit in places; section
-5 and 3 are current. When they disagree, the code wins, then this file.
+`workflows.md` was kept up to date change by change but never re-read whole
+against the code. When the documents disagree, the code wins, then this file.
+
+The development servers are not left running. Start them as in section 3.
 
 ---
 
@@ -80,7 +83,7 @@ npm run db:seed                            # entities, sites, posts, absence typ
 npm run db:seed:demo                       # fake people, a tablet, some shifts (dev only)
 npm run dev:api                            # http://localhost:3000
 npm run dev:web                            # http://localhost:5173
-npm test                                   # 84 tests
+npm test                                   # 88 tests
 ```
 
 **Demo accounts** (all invented, password `dev-password-123`, site Petit Bao Bastille):
@@ -251,11 +254,18 @@ The full table is in workflows.md section 4.
 ## 7. What is built, what is not
 
 **Built and exercised in a browser:** login and password links by e-mail;
-accounts, roles and employee records; planning (week by employee, week by
-post, month) with drag to move / duplicate / delete, time pickers, notes,
-alerts, needs, popular shifts, publication, day locks; tablet clocking;
-Badgeuse with editable paid hours and validation; leave requests end to end;
-in-app notifications; Mon espace (phone-first).
+an account menu with log out on every screen; accounts, roles (multi-site on
+several restaurants at once) and employee records; planning (week by
+employee, week by post, month) with drag to move / duplicate / delete, time
+pickers, notes, alerts, needs, missing-post warnings, one-click gap filling,
+popular shifts, publication, day locks; tablet clocking; Badgeuse with
+editable paid hours and validation; leave requests end to end; in-app
+notifications; Mon espace (phone-first).
+
+**Checked at phone and tablet sizes** (390, 820 and 1180 px wide) in an
+emulated browser: nothing overflows and touch targets are finger-sized. Not
+tried on real devices. Dragging is mouse-only by the owner's decision; on
+touch screens a shift is added by tapping the empty part of a day.
 
 **Not built** (complete list in workflows.md section 15). The ones that matter soonest:
 - Deployment on the VPS, HTTPS, backups. Nothing started.
@@ -332,6 +342,9 @@ Blockers, in order:
 Grouped by what they block. All are in the spec with status Open or Proposed.
 
 **Asked and not answered**
+- Should a suggestion for filling a gap follow a fairness rule (weekends, closing shifts)?
+- "Se déconnecter" and "Se connecter avec un autre compte" do the same thing; is that what "connect" meant?
+- Should a head chef's own leave still go to the site director, and the lab's to HR?
 - Who sets staffing needs: director and multi-site only, or the head chef for the kitchen?
 - Popular shifts: automatic only, or also saved by hand?
 - Which leave types besides congé payé count in the weekly counter?
@@ -361,10 +374,41 @@ Grouped by what they block. All are in the spec with status Open or Proposed.
 
 ---
 
+## 10b. Ideas discussed for building a planning faster
+
+The owner asked how a planner could build a week in about ten minutes and how
+to add "predictive power". Proposed, in this order; only the first is built.
+
+1. **Fill a gap in one click** — built. Ranking is "no new alert, then most
+   hours left on the contract" (`PlanningService.suggestions`).
+2. **Propose a whole planning from the needs**: assign every required post to
+   a qualified, available person. Must stay a draft the planner publishes.
+3. **Rotations**: each person's repeating cycle, rolled forward.
+4. **Painting**: pick a popular shift, click cells to stamp it.
+5. **Availability** entered by employees in Mon espace.
+6. **Predictions**: needs derived from past plannings; overtime and leave
+   conflicts flagged ahead; lateness patterns from the Badgeuse; and staffing
+   from forecast demand, which needs sales per service from the POS — the one
+   input the application does not have, and also what finance asked for
+   (labour cost against revenue).
+
+Not decided: whether the pilot director wants drafts generated for them or
+faster tools to place shifts themselves.
+
+## 10c. Reaching the app from a phone or tablet
+
+The app runs inside WSL on the owner's PC, which other devices on the Wi-Fi
+cannot reach by default. The owner was given, and may have run, a Windows
+port-forwarding rule and a firewall rule for port 5173 (named "PLANetBAO
+dev"), with the commands to remove them. An agent must not change those
+system settings itself. The WSL address changes at each reboot, so the
+forwarding rule has to be re-created with the new one. Password e-mails
+contain `localhost` links and do not work from another device.
+
 ## 11. Known weaknesses
 
 - No permanent tests on the screens or the API endpoints; only the rules
-  package and the rights are covered (84 tests).
+  package and the rights are covered (88 tests).
 - The bell polls once a minute. Nothing reaches a phone that is not on the app.
 - The tablet needs a connection; the event API is idempotent and ready for an
   offline queue, but none exists.
@@ -374,4 +418,9 @@ Grouped by what they block. All are in the spec with status Open or Proposed.
   laptop about eight coupure rows fit, not ten.
 - Popular shifts and the missing-post check are recomputed on every load.
 - `docs/screenshots/` are illustrations from demo data and go stale quickly.
+- Class names in `apps/web/src/me/me.css` are generic and the CSS is bundled
+  into one file: a `.empty` rule there once leaked onto the Badgeuse. Scope new
+  rules under `.me`.
+- The demo multi-site and ops accounts have no employee record, so the leave
+  routes "multi-site → ops" and "ops → HR" are covered by unit tests only.
 - Not a single part has been run by a real user in a real restaurant.
