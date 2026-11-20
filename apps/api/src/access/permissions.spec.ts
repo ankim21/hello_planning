@@ -39,6 +39,14 @@ describe('can', () => {
     expect(can(on('HR', null), 'day.payrollLock', 'a')).toBe(true);
   });
 
+  it('lets a site director ask for an archiving, and only HR decide it', () => {
+    expect(can(on('SITE_DIRECTOR', 'a'), 'employee.archiveRequest', 'a')).toBe(true);
+    expect(can(on('SITE_DIRECTOR', 'a'), 'employee.archive', 'a')).toBe(false);
+    expect(can(on('HEAD_CHEF', 'a'), 'employee.archiveRequest', 'a')).toBe(false);
+    expect(can(on('HR', null), 'employee.archive', 'a')).toBe(true);
+    expect(can(on('HR', null), 'employee.archiveRequest', 'a')).toBe(false);
+  });
+
   it('gives a multi-site manager the rights of a director on each of her sites', () => {
     const grants: Grant[] = [
       { role: 'MULTI_SITE_MANAGER', siteId: 'a' },

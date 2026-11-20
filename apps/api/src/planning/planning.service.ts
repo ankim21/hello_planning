@@ -90,7 +90,13 @@ export class PlanningService {
    * Everything the planning screen shows for one site over a period:
    * 7 days from a Monday for the week view, a whole month for the month view.
    */
-  async period(user: SessionUser, siteId: string, monday: string, length: number) {
+  async period(
+    user: SessionUser,
+    siteId: string,
+    monday: string,
+    length: number,
+    withCounter = false,
+  ) {
     const site = await this.siteOrThrow(siteId);
     // What this person may do here; the screen hides the rest.
     const rights = {
@@ -102,6 +108,8 @@ export class PlanningService {
       // The departments this person may publish: kitchen for a head chef,
       // both for a site director.
       needs: can(user.grants, 'needs.write', siteId),
+      // May ask HR to archive someone, which hides them from this planning.
+      archive: can(user.grants, 'employee.archiveRequest', siteId),
       publish: DEPARTMENTS.filter((department) =>
         can(user.grants, 'planning.publish', siteId, department),
       ),
@@ -155,6 +163,12 @@ export class PlanningService {
       },
       include: { type: true },
     });
+    // People HR has been asked to archive: off this planning meanwhile.
+    const archiving = await this.prisma.archiveRequest.findMany({
+      where: { siteId, status: 'PENDING' },
+      orderBy: { requestedAt: 'asc' },
+    });
+    const leaving = new Set(archiving.map((request) => request.employeeId));
     // Requests still waiting for a decision are shown on the planning too.
     const pendingRequests = await this.prisma.leaveRequest.findMany({
       where: {
@@ -226,7 +240,22 @@ export class PlanningService {
       employee.assignments[0]?.planningOrder ?? Number.MAX_SAFE_INTEGER;
     employees.sort((a, b) => place(a) - place(b));
 
-    const rows = employees.map((employee) => {
+    // Someone being archived keeps a row only where they still have shifts
+    // (a past week, or earlier this week), so no shift is ever shown without
+    // its person. Those rows come last.
+    const shown = [
+      ...employees.filter((employee) => !leaving.has(employee.id)),
+      ...employees.filter(
+        (employee) =>
+          leaving.has(employee.id) && shiftCards.some((card) => card.employeeId === employee.id),
+      ),
+    ];
+    const counters =
+      withCounter && length === 7 && seesAbsenceTypes
+        ? await this.counters(site, monday, shown.map((employee) => employee.id))
+        : null;
+
+    const rows = shown.map((employee) => {
       const contract = employee.contracts[0];
       const own = shiftCards.filter((card) => card.employeeId === employee.id);
       const planned = own.reduce((sum, card) => sum + card.minutes, 0);
@@ -243,6 +272,12 @@ export class PlanningService {
         },
         contractMinutes,
         contractKind: contractKind(contract),
+        archivePending: leaving.has(employee.id),
+        // Hours over or under the contract since the first shift here; null
+        // when not asked for, or without weekly hours to compare with.
+        counterMinutes:
+          contractMinutes === null ? null : (counters?.get(employee.id)?.minutes ?? null),
+        counterSince: counters?.get(employee.id)?.since ?? null,
         plannedMinutes: planned,
         // Paid leave and récupération JF count as hours: a day is worth a
         // fifth of the contract.
@@ -325,6 +360,25 @@ export class PlanningService {
     return {
       site: { id: site.id, name: site.name },
       rights,
+      // Hidden while HR decides, for the people who plan.
+      hidden: seesAbsenceTypes
+        ? archiving.flatMap((request) => {
+            const employee = employees.find((person) => person.id === request.employeeId);
+            return employee
+              ? [
+                  {
+                    requestId: request.id,
+                    employee: {
+                      id: employee.id,
+                      firstName: employee.firstName,
+                      lastName: employee.lastName,
+                    },
+                    requestedAt: request.requestedAt,
+                  },
+                ]
+              : [];
+          })
+        : [],
       missing,
       publication,
       days,
@@ -333,6 +387,88 @@ export class PlanningService {
       posts,
       absenceTypes: absenceTypes.map(({ id, name, category }) => ({ id, name, category })),
     };
+  }
+
+  // ───────────── Hours counter ─────────────
+
+  /**
+   * The counter of each person at this site: planned hours, plus the absences
+   * that count, against the contract, added up week by week from the week of
+   * their first shift here to the week shown (included). A week without
+   * weekly hours on the contract (forfait jours, extra, no contract) adds
+   * nothing.
+   */
+  private async counters(
+    site: { id: string; timezone: string },
+    monday: string,
+    employeeIds: string[],
+  ) {
+    const end = zonedDateTime(addDays(monday, 7), '00:00', site.timezone);
+    const [shifts, absences, contracts] = await Promise.all([
+      this.prisma.shift.findMany({
+        where: { siteId: site.id, employeeId: { in: employeeIds }, startsAt: { lt: end } },
+        select: { employeeId: true, startsAt: true, endsAt: true, breakMinutes: true },
+      }),
+      this.prisma.absence.findMany({
+        where: {
+          employeeId: { in: employeeIds },
+          type: { countsInCounter: true },
+          startDate: { lte: toDbDate(addDays(monday, 6)) },
+        },
+      }),
+      this.prisma.contract.findMany({
+        where: { employeeId: { in: employeeIds } },
+        orderBy: { startDate: 'desc' },
+      }),
+    ]);
+
+    // Planned minutes per person and per week (by its Monday).
+    const planned = new Map<string, Map<string, number>>();
+    for (const shift of shifts) {
+      const week = mondayOf(localDate(shift.startsAt, site.timezone));
+      const own = planned.get(shift.employeeId) ?? new Map<string, number>();
+      own.set(
+        week,
+        (own.get(week) ?? 0) + plannedMinutes(shift.startsAt, shift.endsAt, shift.breakMinutes),
+      );
+      planned.set(shift.employeeId, own);
+    }
+
+    const counters = new Map<string, { minutes: number; since: string }>();
+    for (const [employeeId, weeks] of planned) {
+      const since = [...weeks.keys()].sort()[0];
+      const ownAbsences = absences.filter((absence) => absence.employeeId === employeeId);
+      const ownContracts = contracts.filter((contract) => contract.employeeId === employeeId);
+      let minutes = 0;
+      for (let week = since; week <= monday; week = addDays(week, 7)) {
+        const sunday = addDays(week, 6);
+        // The contract in force that week (the latest one that covers it).
+        const contract = ownContracts.find(
+          (candidate) =>
+            fromDbDate(candidate.startDate) <= sunday &&
+            (!candidate.endDate || fromDbDate(candidate.endDate) >= week),
+        );
+        if (!contract || contract.weeklyHours == null) continue;
+        const contractMinutes = Math.round(Number(contract.weeklyHours) * 60);
+        const dates = Array.from({ length: 7 }, (_, i) => addDays(week, i));
+        const absent = countedAbsenceMinutes(
+          dates,
+          ownAbsences.map((absence) => ({
+            startDate: fromDbDate(absence.startDate),
+            endDate: fromDbDate(absence.endDate),
+            dayMinutes: absenceDayMinutes(
+              contractMinutes,
+              absence.dayPart,
+              absence.startTime,
+              absence.endTime,
+            ),
+          })),
+        );
+        minutes += (weeks.get(week) ?? 0) + absent - contractMinutes;
+      }
+      counters.set(employeeId, { minutes, since });
+    }
+    return counters;
   }
 
   // ───────────── Order of the rows ─────────────
@@ -622,6 +758,8 @@ export class PlanningService {
         isActive: true,
         assignments: { some: { siteId } },
         posts: { some: { postId } },
+        // Not someone HR has been asked to archive.
+        archiveRequests: { none: { siteId, status: 'PENDING' } },
       },
       include: {
         contracts: {

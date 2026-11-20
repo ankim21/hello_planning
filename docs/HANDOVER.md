@@ -233,6 +233,16 @@ Each is in the spec with its ID. These are the ones easiest to get wrong.
   unique names, so "Service" is the same post everywhere.
 - The order of the employee rows is the restaurant's (SiteAssignment
   .planningOrder), set by dragging in "⇅ Ordre".
+- Archiving an employee is a request (table ArchiveRequest,
+  `planning/archive.service.ts`): the site director asks from the planning,
+  which hides the person there at once; HR or an administrator approves
+  (Employee.isActive = false) or refuses, in Demandes. Refused while shifts
+  to come remain. There is no HR account in the demo data: test as
+  administrator.
+- The "Compteur" of the planning (`PlanningService.counters`, asked with
+  `counter=1`) adds up planned hours against the contract since the person's
+  first shift at the site. It reads every shift of the site up to the week
+  shown: fine today, to revisit when there are years of data.
 - A day whose Badgeuse lines are all validated locks itself in blue
   (`PlanningService.lockValidatedDay`); locked days are greyed on the planning.
 - Kitchen and salle are published separately per week. Employees see a shift

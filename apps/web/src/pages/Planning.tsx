@@ -14,6 +14,7 @@ import {
   type ReactNode,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
 } from 'react'
@@ -49,6 +50,7 @@ import {
   weekNumber,
 } from './dates.ts'
 import { Shell } from './Shell.tsx'
+import { WeekPicker } from './WeekPicker.tsx'
 
 const LOCK_LABELS: Record<LockStatus, string> = {
   OPEN: 'Ouvert',
@@ -116,22 +118,45 @@ function Board({ siteId }: { siteId: string }) {
   const [ordering, setOrdering] = useState(false)
   const [movingRow, setMovingRow] = useState<string | null>(null)
   const [overRow, setOverRow] = useState<string | null>(null)
+  // What the last column shows: the hours of the period, or each person's
+  // counter (hours over or under the contract since their first shift here).
+  const [totalMode, setTotalMode] = useState<'total' | 'counter'>('total')
+  const scroller = useRef<HTMLDivElement>(null)
 
   const month = span === 'month'
   const from = month ? firstOfMonth(anchor) : mondayOf(anchor)
   const length = month ? daysInMonth(anchor) : 7
   const byPost = !month && view === 'posts'
+  const counter = !month && totalMode === 'counter'
 
   const load = useCallback(() => {
-    api<PlanningWeek>(`/sites/${siteId}/planning?from=${from}&days=${length}`)
+    api<PlanningWeek>(
+      `/sites/${siteId}/planning?from=${from}&days=${length}${counter ? '&counter=1' : ''}`,
+    )
       .then((result) => {
         setData(result)
         setError(null)
       })
       .catch((caught) => setError((caught as Error).message))
-  }, [siteId, from, length])
+  }, [siteId, from, length, counter])
 
   useEffect(load, [load])
+
+  // The planning scrolls inside its own frame, sized to what is left of the
+  // window, so the day headers and the hours bar stay in view while the rows
+  // move under them.
+  const ready = data !== null
+  useLayoutEffect(() => {
+    const fit = () => {
+      const frame = scroller.current
+      if (!frame) return
+      const top = frame.getBoundingClientRect().top + window.scrollY
+      frame.style.maxHeight = `${Math.max(260, window.innerHeight - top - 26)}px`
+    }
+    fit()
+    window.addEventListener('resize', fit)
+    return () => window.removeEventListener('resize', fit)
+  }, [ready, popularOpen, error, month])
 
   const loadPopular = useCallback(() => {
     api<PopularShift[]>(`/sites/${siteId}/popular-shifts`)
@@ -343,6 +368,39 @@ function Board({ siteId }: { siteId: string }) {
     }
   }
 
+  /**
+   * Takes someone off the planning: HR is asked to archive them, and they
+   * stop showing here at once. Refused while they still have shifts to come.
+   */
+  async function askArchive(person: { id: string; firstName: string; lastName: string }) {
+    const reason = window.prompt(
+      `Retirer ${person.firstName} ${person.lastName} du planning ?\n\n` +
+        "La personne disparaît du planning tout de suite, et les RH reçoivent une demande d'archivage. " +
+        'Si les RH refusent, elle revient.\n\nMotif pour les RH (facultatif) :',
+    )
+    if (reason === null) return // window closed: nothing happens
+    try {
+      await api(`/sites/${siteId}/employees/${person.id}/archive-request`, {
+        method: 'POST',
+        body: { reason: reason.trim() || undefined },
+      })
+      setError(null)
+      load()
+    } catch (caught) {
+      setError((caught as Error).message)
+    }
+  }
+
+  /** The site changes its mind before HR answers: the person is back. */
+  async function cancelArchive(requestId: string) {
+    try {
+      await api(`/archive-requests/${requestId}/cancel`, { method: 'POST' })
+      load()
+    } catch (caught) {
+      setError((caught as Error).message)
+    }
+  }
+
   if (!data) return <main className="wide">{error && <p className="error">{error}</p>}</main>
 
   const { rights } = data
@@ -520,6 +578,32 @@ function Board({ siteId }: { siteId: string }) {
     )
   }
 
+  /** How a day's hours are shared out: one line per post and service. */
+  const breakdown = (date: string) => {
+    const groups = new Map<
+      string,
+      { name: string; service: 'AM' | 'PM'; color: string; minutes: number; people: Set<string> }
+    >()
+    for (const shift of allShifts) {
+      if (shift.date !== date) continue
+      const key = shift.postId + shift.service
+      const group = groups.get(key) ?? {
+        name: shift.postName,
+        service: shift.service,
+        color: shift.color,
+        minutes: 0,
+        people: new Set<string>(),
+      }
+      group.minutes += shift.minutes
+      group.people.add(shift.employeeId)
+      groups.set(key, group)
+    }
+    // Midi before soir, the biggest first.
+    return [...groups.values()].sort(
+      (a, b) => a.service.localeCompare(b.service) || b.minutes - a.minutes,
+    )
+  }
+
   const addButton = (label: string, target: EditorTarget) =>
     (rights.editShifts || rights.editAbsences) && (
     <button className="add" aria-label={label} title="Ajouter" onClick={() => setEditing(target)}>
@@ -534,11 +618,12 @@ function Board({ siteId }: { siteId: string }) {
           <button onClick={() => move(-1)} aria-label="Période précédente">
             ‹
           </button>
-          <strong>
-            {month
-              ? capitalise(dayLabel(from, { month: 'long', year: 'numeric' }))
-              : `${dayLabel(from, { day: 'numeric', month: 'short' })} – ${dayLabel(addDays(from, 6), { day: 'numeric', month: 'short', year: 'numeric' })}`}
-          </strong>
+          {month ? (
+            <strong>{capitalise(dayLabel(from, { month: 'long', year: 'numeric' }))}</strong>
+          ) : (
+            // The dates open a calendar: a whole month, one line per week.
+            <WeekPicker day={from} onPick={setAnchor} byWeek />
+          )}
           <button onClick={() => move(1)} aria-label="Période suivante">
             ›
           </button>
@@ -563,6 +648,30 @@ function Board({ siteId }: { siteId: string }) {
             missing={data.missing}
             onFill={rights.editShifts ? setFilling : undefined}
           />
+        )}
+        {data.hidden.length > 0 && (
+          <AlertPop
+            buttonClass="hidden-badge"
+            label={`${data.hidden.length} retiré${data.hidden.length > 1 ? 's' : ''}`}
+            name="Retirés du planning — archivage demandé aux RH"
+          >
+            {data.hidden.map((entry) => (
+              <li key={entry.requestId}>
+                <strong>
+                  {entry.employee.firstName} {entry.employee.lastName}
+                </strong>{' '}
+                · demandé le {dayLabel(entry.requestedAt.slice(0, 10), { day: 'numeric', month: 'short' })}
+                {rights.archive && (
+                  <>
+                    {' '}
+                    <button className="link" onClick={() => cancelArchive(entry.requestId)}>
+                      Remettre sur le planning
+                    </button>
+                  </>
+                )}
+              </li>
+            ))}
+          </AlertPop>
         )}
         {!month && rights.needs && <button onClick={() => setNeedsOpen(true)}>Besoins</button>}
         {rights.editShifts && (
@@ -654,7 +763,7 @@ function Board({ siteId }: { siteId: string }) {
 
       {error && <p className="error">{error}</p>}
 
-      <div className="planning-scroll panel">
+      <div className="planning-scroll panel" ref={scroller}>
         <table
           className={month ? 'planning month' : 'planning'}
           style={month ? { minWidth: 260 + length * 46 } : undefined}
@@ -740,7 +849,22 @@ function Board({ siteId }: { siteId: string }) {
                   </span>
                 </th>
               ))}
-              <th>Total</th>
+              <th>
+                {month || byPost ? (
+                  'Total'
+                ) : (
+                  <select
+                    className="total-mode"
+                    aria-label="Dernière colonne : total de la semaine ou compteur d'heures"
+                    title="Total de la semaine, ou compteur : l'écart avec le contrat depuis le premier shift dans ce restaurant"
+                    value={totalMode}
+                    onChange={(event) => setTotalMode(event.target.value as 'total' | 'counter')}
+                  >
+                    <option value="total">Total</option>
+                    <option value="counter">Compteur</option>
+                  </select>
+                )}
+              </th>
             </tr>
           </thead>
 
@@ -790,6 +914,7 @@ function Board({ siteId }: { siteId: string }) {
                 <tr
                   key={row.employee.id}
                   className={[
+                    row.archivePending ? 'leaving' : '',
                     movingRow === row.employee.id ? 'moving' : '',
                     movingRow && movingRow !== row.employee.id && overRow === row.employee.id
                       ? 'row-over'
@@ -855,6 +980,17 @@ function Board({ siteId }: { siteId: string }) {
                         ? contractKindLabel(row.contractKind)
                         : hours(row.contractMinutes)}
                     </span>
+                    {row.archivePending && <span className="leaving-tag">Archivage demandé</span>}
+                    {rights.archive && !row.archivePending && (
+                      <button
+                        className="hide-row"
+                        title="Retirer du planning (demande d'archivage aux RH)"
+                        aria-label={`Retirer ${row.employee.firstName} ${row.employee.lastName} du planning`}
+                        onClick={() => askArchive(row.employee)}
+                      >
+                        ×
+                      </button>
+                    )}
                     {row.alerts.length > 0 && (
                       <AlertPop label={`⚠ ${row.alerts.length}`} name="Alertes de la semaine">
                         {row.alerts.map((alert, index) => (
@@ -906,13 +1042,35 @@ function Board({ siteId }: { siteId: string }) {
                         : undefined
                     }
                   >
-                    <strong>{hours(row.plannedMinutes + row.absenceMinutes)}</strong>
-                    {month ? (
-                      <span className="muted">
-                        {row.shifts.length} shift{row.shifts.length > 1 ? 's' : ''}
-                      </span>
+                    {counter ? (
+                      // Since the first shift here, to the end of the week shown.
+                      <>
+                        {row.counterMinutes === null ? (
+                          <strong className="muted">–</strong>
+                        ) : (
+                          <strong
+                            className={
+                              row.counterMinutes > 0 ? 'over' : row.counterMinutes < 0 ? 'under' : ''
+                            }
+                            title={`Écart avec le contrat depuis la semaine du ${dayLabel(row.counterSince!, { day: 'numeric', month: 'short', year: 'numeric' })}, cette semaine comprise`}
+                          >
+                            {row.counterMinutes > 0 ? '+' : ''}
+                            {hours(row.counterMinutes)}
+                          </strong>
+                        )}
+                        <span className="muted">{hours(row.plannedMinutes + row.absenceMinutes)}</span>
+                      </>
                     ) : (
-                      <Difference minutes={row.differenceMinutes} />
+                      <>
+                        <strong>{hours(row.plannedMinutes + row.absenceMinutes)}</strong>
+                        {month ? (
+                          <span className="muted">
+                            {row.shifts.length} shift{row.shifts.length > 1 ? 's' : ''}
+                          </span>
+                        ) : (
+                          <Difference minutes={row.differenceMinutes} />
+                        )}
+                      </>
                     )}
                   </td>
                 </tr>
@@ -928,12 +1086,44 @@ function Board({ siteId }: { siteId: string }) {
                   key={day.date}
                   className={[dayClass(day.date), isMonday(day.date) ? 'week-start' : ''].join(' ')}
                 >
-                  {month ? (
-                    hours(day.minutes)
+                  {day.minutes === 0 ? (
+                    month ? (
+                      hours(0)
+                    ) : (
+                      <>
+                        0 pers. · <strong>{hours(0)}</strong>
+                      </>
+                    )
                   ) : (
-                    <>
-                      {day.people} pers. · <strong>{hours(day.minutes)}</strong>
-                    </>
+                    // Hovering or clicking shows how the day's hours are shared out.
+                    <AlertPop
+                      above
+                      buttonClass="day-total"
+                      label={
+                        month ? (
+                          hours(day.minutes)
+                        ) : (
+                          <>
+                            {day.people} pers. · <strong>{hours(day.minutes)}</strong>
+                          </>
+                        )
+                      }
+                      aria={`Répartition des heures du ${dayLabel(day.date, { weekday: 'long', day: 'numeric', month: 'long' })}`}
+                      name={`${capitalise(dayLabel(day.date, { weekday: 'short', day: 'numeric', month: 'short' }))} — ${hours(day.minutes)} pour ${day.people} personne${day.people > 1 ? 's' : ''}`}
+                    >
+                      {breakdown(day.date).map((group) => (
+                        <li key={group.name + group.service} className="split-line">
+                          <span>
+                            <span className="dot" style={{ background: group.color }} /> {group.name}{' '}
+                            {group.service}
+                          </span>
+                          <span>
+                            <strong>{hours(group.minutes)}</strong> · {group.people.size} pers. ·{' '}
+                            {Math.round((group.minutes / day.minutes) * 100)} %
+                          </span>
+                        </li>
+                      ))}
+                    </AlertPop>
                   )}
                 </td>
               ))}
@@ -1246,7 +1436,23 @@ function WeekAlerts({ rows }: { rows: PlanningRow[] }) {
  * An alert count that shows its list at once when hovered, and keeps it open
  * when clicked (click again, click elsewhere or press Escape to close).
  */
-function AlertPop({ label, name, children }: { label: string; name: string; children: ReactNode }) {
+function AlertPop({
+  label,
+  name,
+  children,
+  buttonClass = 'alert-badge',
+  above = false,
+  aria,
+}: {
+  label: ReactNode
+  name: string
+  children: ReactNode
+  /** How the button looks; an orange alert count unless said otherwise. */
+  buttonClass?: string
+  /** Opens above the button: for what sits at the bottom of the screen. */
+  above?: boolean
+  aria?: string
+}) {
   const [hovered, setHovered] = useState(false)
   const [pinned, setPinned] = useState(false)
   const [place, setPlace] = useState<CSSProperties>({})
@@ -1257,10 +1463,12 @@ function AlertPop({ label, name, children }: { label: string; name: string; chil
   const locate = () => {
     const rect = anchor.current?.getBoundingClientRect()
     if (!rect) return
-    setPlace({
-      left: Math.max(8, Math.min(rect.left, window.innerWidth - 368)),
-      top: Math.min(rect.bottom + 4, window.innerHeight - 120),
-    })
+    const left = Math.max(8, Math.min(rect.left, window.innerWidth - 368))
+    setPlace(
+      above
+        ? { left, bottom: window.innerHeight - rect.top + 4 }
+        : { left, top: Math.min(rect.bottom + 4, window.innerHeight - 120) },
+    )
   }
 
   useEffect(() => {
@@ -1288,9 +1496,9 @@ function AlertPop({ label, name, children }: { label: string; name: string; chil
       onMouseLeave={() => setHovered(false)}
     >
       <button
-        className={pinned ? 'alert-badge pinned' : 'alert-badge'}
+        className={pinned ? `${buttonClass} pinned` : buttonClass}
         aria-expanded={open}
-        aria-label={`${name} : ${label.replace('⚠', '').trim()}`}
+        aria-label={aria ?? `${name} : ${typeof label === 'string' ? label.replace('⚠', '').trim() : ''}`}
         onClick={() => {
           locate()
           setPinned(!pinned)

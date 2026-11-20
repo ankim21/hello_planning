@@ -4,7 +4,7 @@
  */
 import { type ReactNode, useEffect, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router'
-import { api, type InboxRequest, type Me, type Site } from '../api.ts'
+import { api, type ArchiveRequest, type InboxRequest, type Me, type Site } from '../api.ts'
 import { AccountMenu } from './AccountMenu.tsx'
 import { Bell } from './Bell.tsx'
 import { Logo } from './Logo.tsx'
@@ -56,9 +56,16 @@ export function Shell({ siteId, section = 'planning', children }: Props) {
   // How many requests are waiting for this person, shown on the tab.
   useEffect(() => {
     if (!manages) return
-    api<InboxRequest[]>('/leave/inbox')
-      .then((list) =>
-        setWaiting(list.filter((request) => request.canDecide).length),
+    // Leave requests and archiving requests this person decides.
+    Promise.all([
+      api<InboxRequest[]>('/leave/inbox'),
+      api<ArchiveRequest[]>('/archive-requests').catch(() => []),
+    ])
+      .then(([leave, archives]) =>
+        setWaiting(
+          leave.filter((request) => request.canDecide).length +
+            archives.filter((request) => request.canDecide).length,
+        ),
       )
       .catch(() => setWaiting(0))
   }, [manages, siteId, section])

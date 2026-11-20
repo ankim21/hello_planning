@@ -43,6 +43,7 @@ model Site {
   publications  Publication[]
   staffingNeeds StaffingNeed[]
   posts         SitePost[]
+  archiveRequests ArchiveRequest[]
 }
 
 enum Department {
@@ -100,6 +101,7 @@ model Employee {
   absences    Absence[]
   timeEntries TimeEntry[]
   leaveRequests LeaveRequest[]
+  archiveRequests ArchiveRequest[]
 }
 
 enum ContractType {
@@ -476,4 +478,34 @@ model AuditLog {
   data          Json?
 
   @@index([entity, entityId])
+}
+
+// ───────────── Archiving an employee ─────────────
+
+enum ArchiveStatus {
+  PENDING
+  APPROVED
+  REFUSED
+  CANCELLED
+}
+
+// A site director asks HR to archive someone. While the request waits, the
+// person no longer shows on that site's planning; approved, the employee
+// record is archived (isActive = false); refused or cancelled, they are back.
+model ArchiveRequest {
+  id            String        @id @default(uuid())
+  employeeId    String
+  employee      Employee      @relation(fields: [employeeId], references: [id])
+  siteId        String
+  site          Site          @relation(fields: [siteId], references: [id])
+  reason        String?
+  status        ArchiveStatus @default(PENDING)
+  requestedById String
+  requestedAt   DateTime      @default(now())
+  decidedById   String?
+  decidedAt     DateTime?
+  decisionNote  String?
+
+  @@index([siteId, status])
+  @@index([status])
 }

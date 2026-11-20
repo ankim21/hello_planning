@@ -9,6 +9,8 @@ import type { Department, Role } from '../generated/prisma/enums.js';
 export type Action =
   | 'employee.read'
   | 'employee.setPin'
+  | 'employee.archiveRequest'
+  | 'employee.archive'
   | 'post.manage'
   | 'device.manage'
   | 'account.manage'
@@ -44,6 +46,9 @@ const ROLES_ALLOWED: Record<Action, Role[]> = {
     'ADMIN',
   ],
   'employee.setPin': ['ADMIN'],
+  // Taking someone off the planning: the site asks, HR decides.
+  'employee.archiveRequest': ['SITE_DIRECTOR', 'MULTI_SITE_MANAGER', 'ADMIN'],
+  'employee.archive': ['HR', 'ADMIN'],
   'post.manage': ['ADMIN'],
   'device.manage': ['ADMIN'],
   // Creating accounts and giving roles. Asked with no site, so it needs an

@@ -131,6 +131,11 @@ The lab is left out of brick 1.
 | PLN-62 | The employee row shows the contract hours without "/ sem." | Confirmed 2026-11-20 |
 | PLN-63 | Popular shifts open from a 🔥 button next to Besoins, as a strip to drag onto an employee's day | Confirmed 2026-11-20; click-then-click for touch screens is Proposed |
 | PLN-64 | Today's whole column is highlighted. A day that is past and validated in the Badgeuse closes with the blue lock, and its column is greyed | Confirmed 2026-11-20; "validated" = every line of the day, today included, is Proposed |
+| PLN-66 | The hours bar under the planning stays in view while the rows scroll, and each day's total opens its split by post and service | Confirmed 2026-11-20; the split showing people and share is Proposed |
+| PLN-67 | A site director takes someone off the planning by asking HR to archive them: the person disappears at once, HR is notified, approval archives the profile, refusal brings them back | Confirmed 2026-11-20 |
+| PLN-68 | The request is refused while the person has shifts to come | Confirmed 2026-11-20 |
+| PLN-69 | The Total column offers "Compteur": hours over or under the contract over the person's whole time at the restaurant, from planned hours | Confirmed 2026-11-20; starting at the week of the first shift and ending with the week shown is Proposed |
+| PLN-70 | The dates of the planning open a calendar to choose a week | Confirmed 2026-11-20 |
 | PLN-65 | Each restaurant chooses or creates its own posts for the salle and the kitchen (Petit Bao Bastille salle: Manager and Service); the list is used in Besoins, the shift editor and the Postes view | Confirmed 2026-11-20; set by whoever sets the needs is Proposed |
 | PLN-54 | Each restaurant sets its general needs for the week: for each day and service, how many people on each post, and how many in total in the salle and in the kitchen | Confirmed 2026-11-17 |
 | PLN-55 | The planning warns, day by day, about posts short of the needs, and again in the publication menu before publishing. It warns; it does not block | Confirmed |

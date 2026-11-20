@@ -23,6 +23,8 @@ const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Expected HH:MM');
 const periodSchema = z.object({
   from: date,
   days: z.coerce.number().int().min(1).max(42).default(7),
+  // "1" also works out each person's hours counter since their first shift.
+  counter: z.enum(['0', '1']).default('0'),
 });
 
 const shiftSchema = z.object({
@@ -96,10 +98,10 @@ export class PlanningController {
   async period(
     @CurrentUser() user: SessionUser,
     @Param('siteId') siteId: string,
-    @Query({ schema: periodSchema }) { from, days }: z.infer<typeof periodSchema>,
+    @Query({ schema: periodSchema }) { from, days, counter }: z.infer<typeof periodSchema>,
   ) {
     await this.access.assertCanSeePlanning(user, siteId);
-    return this.planning.period(user, siteId, from, days);
+    return this.planning.period(user, siteId, from, days, counter === '1');
   }
 
   // Rights for the calls below are checked inside the service, because they

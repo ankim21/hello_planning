@@ -253,6 +253,12 @@ export interface PlanningRow {
   alerts: PlanningAlert[]
   /** Leave requests still waiting for a decision. */
   requests: { id: string; typeName: string; startDate: string; endDate: string }[]
+  /** HR has been asked to archive this person; the row is only there for shifts already planned. */
+  archivePending: boolean
+  /** Hours over (+) or under (−) the contract since the first shift at the site; only when asked for. */
+  counterMinutes: number | null
+  /** Monday of the week the counter starts from. */
+  counterSince: string | null
 }
 export interface PlanningWeek {
   site: { id: string; name: string }
@@ -265,7 +271,11 @@ export interface PlanningWeek {
     publish: Department[]
     /** May change the restaurant's staffing needs. */
     needs: boolean
+    /** May take someone off the planning by asking HR to archive them. */
+    archive: boolean
   }
+  /** People off the planning while HR decides on their archiving. */
+  hidden: { requestId: string; employee: Person; requestedAt: string }[]
   /** Posts the restaurant's rule asks for and the planning lacks, by day. */
   missing: MissingPost[]
   /** When each department was published for the staff; only given for a week. */
@@ -275,6 +285,23 @@ export interface PlanningWeek {
   totalMinutes: number
   posts: { id: string; name: string; department: 'KITCHEN' | 'SALLE'; color: string }[]
   absenceTypes: { id: string; name: string; category: string }[]
+}
+
+// ───────────── Archiving requests ─────────────
+
+export interface ArchiveRequest {
+  id: string
+  employee: Person
+  site: { id: string; name: string }
+  reason: string | null
+  status: 'PENDING' | 'APPROVED' | 'REFUSED' | 'CANCELLED'
+  requestedBy: string
+  requestedAt: string
+  decidedBy: string | null
+  decidedAt: string | null
+  decisionNote: string | null
+  canDecide: boolean
+  canCancel: boolean
 }
 
 // ───────────── Leave requests ─────────────

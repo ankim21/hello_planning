@@ -572,3 +572,37 @@ button.fire.active { border-color: #f97316; background: color-mix(in srgb, #f973
 .needs tr.add-post th { text-align: left; padding: 6px 8px 14px; font-weight: 400; }
 .needs tr.add-post form { display: flex; gap: 6px; }
 .needs tr.add-post input { width: 230px; text-align: left; padding: 4px 8px; border-color: var(--line); background: var(--surface); }
+
+/* The planning scrolls in its own frame: the day headers stay at the top and
+   the hours bar at the bottom while the rows move. */
+.planning-scroll { overflow: auto; }
+.planning thead th { position: sticky; top: 0; z-index: 6; }
+.planning thead th:not(.today) { box-shadow: inset 0 -1px 0 var(--line); }
+.planning tfoot td, .planning tfoot th { position: sticky; bottom: 0; z-index: 6; box-shadow: inset 0 1px 0 var(--line); }
+.planning thead th:has(.lock-menu) { z-index: 8; }
+
+/* A day's hours, shared out by post and service. */
+.day-total { border: none; background: none; padding: 0; font: inherit; color: inherit; cursor: pointer; text-decoration: underline dotted; text-underline-offset: 3px; }
+.day-total.pinned { color: var(--accent); }
+.alert-list .split-line { display: flex; justify-content: space-between; gap: 18px; white-space: nowrap; }
+
+/* Total or counter, chosen in the header of the last column. */
+.total-mode { width: 100%; padding: 1px 2px; font: inherit; font-weight: 600; border-color: transparent; background: none; text-align: right; cursor: pointer; }
+.total-mode:hover, .total-mode:focus { border-color: var(--line); }
+
+/* Taking someone off the planning. */
+.planning th.employee { position: relative; }
+.hide-row { position: absolute; top: 1px; right: 1px; border: none; background: none; padding: 0 4px; font-size: 0.95rem; line-height: 1.1; color: var(--muted); opacity: 0; }
+.planning th.employee:hover .hide-row, .hide-row:focus-visible, .planning th.employee.ordering .hide-row { opacity: 1; }
+.hide-row:hover { color: #dc2626; }
+@media (hover: none) { .hide-row { opacity: 0.5; } }
+.planning tr.leaving th.employee, .planning tr.leaving td { opacity: 0.6; }
+.leaving-tag { display: block; font-size: 0.7rem; font-weight: 500; color: #b45309; }
+.hidden-badge { border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; font-size: 0.85rem; background: var(--surface); color: var(--muted); }
+.hidden-badge.pinned { border-color: var(--accent); color: var(--accent); }
+.alert-list button.link { border: none; background: none; padding: 0; color: var(--accent); text-decoration: underline; font: inherit; }
+
+/* Picking a week: the whole line lights up. */
+.week-picker .calendar.by-week tbody tr:hover td, .week-picker .calendar.by-week tbody tr:hover th { background: color-mix(in srgb, var(--accent) 16%, var(--surface)); }
+.week-picker .calendar.by-week tr.current td, .week-picker .calendar.by-week tr.current th { background: color-mix(in srgb, var(--accent) 22%, var(--surface)); }
+.week-picker .calendar.by-week td button:hover { background: none; }

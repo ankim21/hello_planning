@@ -168,6 +168,8 @@ Screen: Gestion → **Planning**, for the site chosen in the header menu.
 | Mois | One per employee, one narrow column per day of the calendar month | Compact cards, hours and number of shifts per employee |
 
 - Week navigation by arrows; "Aujourd'hui" returns to the current period.
+  Clicking the dates opens a calendar of the month, one line per week with
+  its number: the whole line lights up and a click goes to that week.
 - The week number shown is the ISO week (Semaine 47).
 - Each employee row shows the contract's weekly hours ("39h00"), or "Forfait jours".
 - **Order of the rows**: "⇅ Ordre", under the Employés / Postes tabs, puts a
@@ -184,8 +186,24 @@ Screen: Gestion → **Planning**, for the site chosen in the header menu.
 - **Absence cards** show what the day is worth: a fifth of the weekly contract
   (7h on 35 hours, 7.8h on 39), half of it for a half day, the hours given for
   custom hours. Nothing on forfait jours.
-- **Daily recap**: number of people and total hours under each day, and the
-  total of the period.
+- **Daily recap** ("Heures planifiées"): number of people and total hours
+  under each day, and the total of the period. The planning scrolls inside
+  its own frame, so this bar stays at the bottom of the screen and the day
+  headers at the top while the rows move. Hovering or clicking a day's total
+  shows how its hours are shared out: one line per post and service, with
+  hours, number of people and share of the day (Service AM 12h00 · 2 pers. ·
+  14 %), midi before soir.
+- **Compteur**: the header of the last column is a choice between "Total"
+  and "Compteur". The counter is each person's hours over (red, +) or under
+  (blue, −) their contract at this restaurant, added up week by week from the
+  week of their first shift here to the week shown, included. It counts
+  planned hours plus congé payé and récupération JF, against the contract in
+  force each week; a week without weekly hours (forfait jours, extra, no
+  contract) adds nothing. Shifts at another restaurant are not counted. The
+  week's total stays underneath. Week view by employee only.
+- **Taking someone off the planning**: a "×" on the employee's row (on hover;
+  always visible in "Ordre" and on touch screens), for the site director and
+  the multi-site manager. See section 5.5.
 - The week view is dense on purpose: ten employee rows fit on a 1500 × 900
   screen at 100%, even with a coupure on each.
 - Alerts are a count next to the employee and a chip for the whole week;
@@ -284,6 +302,29 @@ on their contract that week. "Planifier" adds the shift with the restaurant's
 most frequent hours for that post. The window stays open while people are
 still missing, and says so when nobody is available. A department total
 cannot be filled this way.
+
+### 5.5 Taking someone off the planning (archiving)
+
+A site director cannot archive an employee alone; HR decides. So that the
+planning is clean meanwhile:
+
+1. The director clicks "×" on the person's row and may give a reason. Refused
+   while the person still has shifts to come at this restaurant: remove or
+   reassign them first.
+2. The person disappears from this restaurant's planning at once, and is no
+   longer suggested to fill a missing post. A chip "n retiré(s)" in the
+   toolbar lists them, with "Remettre sur le planning" to cancel the request.
+   In a week where they still have shifts (a past week, or earlier this
+   week), their row stays, greyed, at the bottom, marked "Archivage demandé".
+3. HR accounts and administrators get a notification. The request is in
+   Gestion → Demandes, under "Demandes d'archivage".
+4. HR approves: the employee record is archived and leaves every planning.
+   Refused while shifts to come remain in any restaurant. HR refuses, with an
+   optional reason: the person is back on the planning. The director is
+   notified either way.
+
+Archiving does not delete anything and does not close the person's login;
+that stays in Comptes.
 
 ### 5.4 What is refused
 
@@ -698,7 +739,7 @@ All under `/api`. "Session" means a logged-in account.
 | Accounts | `GET accounts`, `GET accounts/options`, `POST accounts`, `POST accounts/:id/reset-password`, `PUT accounts/:id/active`, `POST accounts/:id/grants`, `DELETE accounts/:id/grants/:grantId` |
 | Structure | `GET sites`, `GET posts`, `POST posts`, `GET sites/:siteId/employees`, `PUT employees/:id/pin` |
 | Tablets | `GET sites/:siteId/devices`, `POST sites/:siteId/devices`, `DELETE devices/:id` |
-| Planning | `GET sites/:siteId/planning`, `POST / PATCH / DELETE sites/:siteId/shifts`, `POST / PATCH / DELETE sites/:siteId/absences`, `PUT sites/:siteId/weeks/:monday/publication`, `PUT sites/:siteId/days/:date/lock`, `PUT sites/:siteId/planning-order`, `GET / POST sites/:siteId/posts`, `DELETE sites/:siteId/posts/:postId` |
+| Planning | `GET sites/:siteId/planning`, `POST / PATCH / DELETE sites/:siteId/shifts`, `POST / PATCH / DELETE sites/:siteId/absences`, `PUT sites/:siteId/weeks/:monday/publication`, `PUT sites/:siteId/days/:date/lock`, `PUT sites/:siteId/planning-order`, `GET / POST sites/:siteId/posts`, `DELETE sites/:siteId/posts/:postId`, `POST sites/:siteId/employees/:employeeId/archive-request`, `GET archive-requests`, `POST archive-requests/:id/decision`, `POST archive-requests/:id/cancel`. `GET planning` takes `counter=1` for the hours counters |
 | Badgeuse | `GET sites/:siteId/hours`, `GET sites/:siteId/hours/week`, `POST sites/:siteId/time-entries`, `DELETE sites/:siteId/time-entries/:id` |
 | Leave | `GET leave/types`, `GET leave/mine`, `POST leave`, `POST leave/:id/cancel`, `GET leave/inbox`, `POST leave/:id/decision` |
 | Mon espace | `GET me`, `PUT me/phone`, `GET me/week`, `GET me/sites/:siteId/week` |
@@ -713,6 +754,7 @@ All under `/api`. "Session" means a logged-in account.
 | Employee, Contract | People, phone, tablet PIN (hashed), contract type and weekly hours |
 | SiteAssignment, EmployeePost | Which restaurants a person works at (one is the main one), their row in that restaurant's planning, and which posts they hold |
 | SitePost | The posts a restaurant uses; none = every post |
+| ArchiveRequest | Requests to archive an employee: who asked, for which site, HR's decision |
 | User, RoleGrant, PasswordToken | Logins, roles per site, one-time password links |
 | Device | Registered tablets |
 | Shift | Planned shifts: person, post, service, start, end, break, meals, note |
