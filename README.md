@@ -15,31 +15,44 @@ In-house replacement for Skello (project folder: Skellobis). Brick 1: planning a
 | `packages/labor-rules` | The hours rules as plain functions with tests. No database, no server. |
 | `docs` | Spec, architecture, reference data. |
 
-## First run
+## Run it
 
-Needs Node 24 and Docker.
+Needs Node 24 and Docker (running). All commands are from the project root.
+
+**Once, after cloning:**
 
 ```bash
+git clone git@github.com:ankim21/hello_planning.git && cd hello_planning
 npm install
-cp apps/api/.env.example apps/api/.env   # then set JWT_SECRET and the admin password
-npm run db:up            # starts PostgreSQL (port 5433) and a fake mailbox in Docker
+cp apps/api/.env.example apps/api/.env   # then set JWT_SECRET and SEED_ADMIN_PASSWORD in it
+npm run db:up            # PostgreSQL (port 5433) and a fake mailbox, in Docker
 npm run db:migrate       # creates the tables
 npm run generate -w api  # generates the database client
 npm run db:seed          # 13 entities and sites, 9 posts, first administrator
-npm run db:seed:demo     # optional, development only: fake employees and a tablet
+npm run db:seed:demo     # fake employees, a tablet and some shifts (development only)
 ```
 
-## Every day
+**Each time, in two terminals:**
 
 ```bash
+npm run db:up     # only if Docker was restarted
 npm run dev:api   # server on http://localhost:3000
 npm run dev:web   # web app on http://localhost:5173
-npm test          # rules and rights tests
 ```
 
-With the demo seed: log in as `director@example.com`, and open `/kiosk` with
-the tablet code printed by the seed. All demo PINs are `1234`. `alice@example.com`
-(salle) and `bob@example.com` (kitchen) are plain employee logins, to try leave requests.
+Then open http://localhost:5173 and log in with a demo account. All are
+invented, at the site Petit Bao Bastille, with the password `dev-password-123`:
+
+| Login | Role |
+|---|---|
+| `director@example.com` | Site director |
+| `chef@example.com` | Head chef |
+| `alice@example.com` | Employee, salle |
+| `bob@example.com` | Employee, kitchen |
+
+- Administrator: `admin@example.com` with the `SEED_ADMIN_PASSWORD` you set in `.env`.
+- Tablet (clocking): http://localhost:5173/kiosk, code `demo-tablet-token-for-development-only`, PIN `1234` for everyone.
+- Tests: `npm test`.
 
 ## E-mail
 
