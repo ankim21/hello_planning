@@ -141,7 +141,7 @@ The lab is left out of brick 1.
 |---|---|---|
 | CLK-1 | Clocking happens on a shared tablet on site | Confirmed |
 | CLK-2 | The employee identifies with a 4-digit PIN | Confirmed |
-| CLK-3 | The employee types the first three letters of their last name, selects themselves, then enters their PIN | Confirmed |
+| CLK-3 | The tablet lists the names of the site; typing letters of the first or last name narrows the list; the employee taps their name, then enters their PIN (changed 2026-11-20, was "first three letters of the last name") | Confirmed |
 | CLK-4 | Clock in, clock out; breaks can be clocked | Confirmed |
 | CLK-5 | Clock-in without a planned shift is accepted and flagged to the manager | Confirmed |
 | CLK-6 | Forfait jours managers do not clock | Confirmed |

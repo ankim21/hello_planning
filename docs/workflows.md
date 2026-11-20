@@ -328,9 +328,11 @@ The code is typed on the tablet, which is then tied to that site. A tablet can
 be revoked through the server; there is no button for it.
 
 **Clocking.**
-1. The employee types the first letters of their last name (three; two are
-   accepted). Accents and capitals are ignored.
-2. They pick their name from the matches.
+1. The tablet shows the names of everyone who clocks at the site (forfait
+   jours staff are left out), sorted by first name.
+2. Typing letters narrows the list: each typed word must start the first name
+   or a word of the last name. Accents and capitals are ignored. The employee
+   taps their name.
 3. They enter their 4-digit PIN on the keypad.
 4. The tablet offers what makes sense: "Pointer mon arrivée"; or, once
    clocked in, "Début de pause" and "Pointer mon départ"; or, during a break,
@@ -403,7 +405,27 @@ No match means "sans shift prévu".
 
 ## 10. Validating hours in the Badgeuse
 
-Screen: Gestion → **Badgeuse**, one day at a time.
+Screen: Gestion → **Badgeuse**, laid out like Skello's (rebuilt 2026-11-20).
+
+- **Week:** chosen at the top left with the arrows, or by clicking the dates,
+  which opens a month calendar with week numbers.
+- **Journée:** one day, one line per planned shift of every employee, people
+  in the planning's order (`SiteAssignment.planningOrder`, copied from Skello
+  for Petit Bao Bastille).
+- **Employés:** one employee picked in the list on the left, one line per
+  planned shift of their week, with the hours validated so far and the number
+  of late arrivals. "Valider la semaine" validates their lines.
+- **Abs.:** ticking it turns the paid hours of the line into an absence: a
+  list of absence types ("Absence injustifiée" proposed first) and the hours
+  of the absence, which start as the planned shift's. Validating puts that
+  absence on the planning for those hours and pays 0 hour and 0 meal
+  (`TimeEntry.absent`, `TimeEntry.absenceId`). The planned shift stays.
+  Removing the validation removes the absence.
+- **Total durée** is in decimal hours (6.67h).
+
+Not copied from Skello: the "Historique" tab, the "Position" column, the "⋮"
+actions, print and download.
+
 
 **Layout.**
 - Left: the seven days of the week, each with a tick that turns green when

@@ -77,3 +77,18 @@ export function minutesBetween(start: string, end: string): number {
   const length = toMinutes(end) - toMinutes(start)
   return length <= 0 ? length + 24 * 60 : length
 }
+
+const CONTRACT_KINDS: Record<string, string> = {
+  FORFAIT_JOURS: 'Forfait jours',
+  CDI: 'CDI',
+  CDD: 'CDD',
+  EXTRA: 'Extra',
+  APPRENTICE: 'Apprenti',
+  INTERN: 'Stage',
+  TEMPORARY: 'Temporaire',
+}
+
+/** The line under a name without a weekly counter: "Extra", "Forfait jours"… */
+export function contractKindLabel(kind: string | null): string {
+  return kind === null ? 'Sans contrat en cours' : (CONTRACT_KINDS[kind] ?? kind)
+}

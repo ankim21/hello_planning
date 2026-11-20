@@ -19,7 +19,7 @@ const employeeSchema = z.object({
   primarySiteId: z.uuid(),
   otherSiteIds: z.array(z.uuid()).default([]),
   postIds: z.array(z.uuid()).default([]),
-  contractType: z.enum(['CDI', 'CDD', 'EXTRA', 'APPRENTICE']),
+  contractType: z.enum(['CDI', 'CDD', 'EXTRA', 'APPRENTICE', 'INTERN', 'TEMPORARY']),
   weeklyHours: z.number().min(0).max(60).nullable(),
   forfaitJours: z.boolean().default(false),
   startDate: date,

@@ -190,7 +190,20 @@ label.dialog-body { padding-bottom: 0; }
 /* Tablet time clock: large touch targets. */
 .kiosk { max-width: 640px; font-size: 1.25rem; }
 .kiosk h1 { text-align: center; font-size: 1.6rem; margin-top: 16px; }
-.kiosk input.big { font-size: 2.5rem; text-align: center; letter-spacing: 0.4em; }
+.kiosk-search { position: relative; }
+.kiosk-search input { width: 100%; font-size: 1.4rem; padding: 16px 56px 16px 18px; }
+.kiosk-search input::-webkit-search-cancel-button { display: none; }
+.kiosk-search .clear {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  width: 44px; height: 44px; padding: 0; border: 0; background: none;
+  font-size: 1.8rem; line-height: 1; color: var(--muted);
+}
+.kiosk .people { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+.kiosk .people button {
+  padding: 16px 18px; font-size: 1.2rem; text-align: left; font-weight: 400;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.kiosk .center { text-align: center; }
 .kiosk .choices { display: flex; flex-direction: column; gap: 12px; }
 .kiosk .choices button, .kiosk .pinpad button { padding: 20px; font-size: 1.4rem; }
 .kiosk .pinpad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
@@ -271,6 +284,54 @@ ul.absences { padding: 14px 4px 4px; gap: 10px; }
 .card:disabled:hover { border-color: transparent; border-left-color: var(--post, var(--muted)); }
 .lock:disabled { opacity: 1; cursor: default; }
 .badge-table.readonly input { pointer-events: none; background: none; border-color: transparent; }
+
+/* Badgeuse, like Skello's: toolbar with the week, the two views, the action */
+.badge-toolbar { justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+.badge-toolbar .views { align-self: stretch; align-items: flex-end; }
+.badge-toolbar .views button { padding: 6px 4px; }
+.badge-table th.group, .badge-table td.group { border-left: 1px solid var(--line); }
+.badge-table td.times { white-space: nowrap; }
+.badge-table th, .badge-table td { padding: 14px 8px; }
+.badge-table th { white-space: nowrap; }
+.badge-table input.note { width: 100%; min-width: 120px; box-sizing: border-box; }
+.badge-table td.who span, .badge-table td.who strong { display: block; }
+.badge-table td.absence { white-space: nowrap; }
+.badge-table td.absence select { width: 160px; margin-right: 6px; padding: 5px 4px; }
+.badge-table input.abs { width: 20px; height: 20px; accent-color: var(--accent); }
+.badge-table input:disabled { opacity: 0.45; }
+.banner strong, .banner span { display: block; }
+.banner span { font-size: 0.85rem; color: var(--muted); }
+.badgeuse .people { max-height: calc(100vh - 150px); overflow-y: auto; }
+.badgeuse .people input { margin: 4px 0 8px; width: 100%; min-width: 0; box-sizing: border-box; flex: none; }
+.badgeuse .people button { padding: 12px 14px; }
+.badgeuse .people p { padding: 8px 14px; }
+.badge-summary { display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+.badge-summary .stat { min-width: 200px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 8px; }
+.badge-summary .stat span { display: block; font-size: 0.85rem; color: var(--muted); }
+.badge-summary .stat strong { font-size: 1.7rem; }
+.badge-summary .stat.main { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+.badge-summary .stat.main span { color: inherit; font-weight: 600; }
+.week-picker { position: relative; }
+.week-picker .dates { font-weight: 700; }
+.week-picker .calendar { position: absolute; z-index: 30; top: calc(100% + 6px); left: 0; padding: 12px; box-shadow: 0 8px 24px rgb(0 0 0 / 0.18); }
+.week-picker .calendar .row { justify-content: space-between; margin-bottom: 6px; }
+.week-picker .calendar .row button { border: none; background: none; padding: 4px 10px; }
+.week-picker .calendar table { border-collapse: collapse; }
+.week-picker .calendar th { font-size: 0.72rem; font-weight: 500; color: var(--muted); padding: 2px 4px; }
+.week-picker .calendar tbody th { background: color-mix(in srgb, var(--muted) 14%, var(--surface)); border-radius: 4px; }
+.week-picker .calendar td { padding: 1px; }
+.week-picker .calendar td button { width: 34px; height: 34px; padding: 0; border: none; border-radius: 50%; background: none; font-variant-numeric: tabular-nums; }
+.week-picker .calendar td button:hover { background: color-mix(in srgb, var(--accent) 14%, var(--surface)); }
+.week-picker .calendar tr.current td { background: color-mix(in srgb, var(--accent) 8%, var(--surface)); }
+.week-picker .calendar td button.other { color: var(--muted); opacity: 0.6; }
+.week-picker .calendar td button.today { color: var(--accent); font-weight: 700; }
+.week-picker .calendar td button.picked { background: var(--accent); color: var(--accent-text); opacity: 1; }
+.week-picker .calendar .link { display: block; margin: 8px auto 0; border: none; background: none; color: var(--accent); }
+@media (max-width: 640px) {
+  .badgeuse .people { max-height: none; flex-direction: row; }
+  .badgeuse .people input { min-width: 140px; }
+  .week-picker .calendar td button { width: 38px; height: 38px; }
+}
 
 /* Planning: publication state */
 .chip.draft { border-color: #f59e0b; color: var(--text); background: color-mix(in srgb, #f59e0b 14%, var(--surface)); }

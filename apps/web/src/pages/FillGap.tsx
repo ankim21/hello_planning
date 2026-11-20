@@ -10,7 +10,7 @@
 import { type CSSProperties, useCallback, useEffect, useState } from 'react'
 import { api, type MissingPost, type Person, type PlanningAlert } from '../api.ts'
 import { alertText } from './alertText.ts'
-import { capitalise, dayLabel, decimalHours, hours } from './dates.ts'
+import { capitalise, contractKindLabel, dayLabel, decimalHours, hours } from './dates.ts'
 
 interface Suggestions {
   post: { id: string; name: string; color: string }
@@ -27,6 +27,7 @@ interface Suggestions {
     employee: Person
     contractMinutes: number | null
     plannedMinutes: number
+    contractKind: string | null
     remainingMinutes: number | null
     newAlerts: PlanningAlert[]
   }[]
@@ -165,7 +166,7 @@ export function FillGap({
                   </strong>
                   <span className="muted">
                     {candidate.contractMinutes === null
-                      ? 'Forfait jours'
+                      ? contractKindLabel(candidate.contractKind)
                       : candidate.remainingMinutes! > 0
                         ? `Reste ${hours(candidate.remainingMinutes!)} à planifier sur ${hours(candidate.contractMinutes)}`
                         : `Contrat déjà atteint (${hours(candidate.plannedMinutes)} sur ${hours(candidate.contractMinutes)})`}

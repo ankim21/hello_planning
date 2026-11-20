@@ -1,11 +1,11 @@
 /**
  * The shared tablet's time clock.
  *
- * Steps: (0) one-time set-up with the tablet's code → (1) first three letters
- * of the last name → (2) pick your name → (3) PIN → (4) clock in / out / break.
+ * Steps: (0) one-time set-up with the tablet's code → (1) find your name in
+ * the list, typing letters to narrow it → (2) PIN → (3) clock in / out / break.
  * After a clocking, or 30 seconds without a touch, it returns to step 1.
  */
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { api, ApiError, type ClockKind, deviceToken, type Person } from '../api.ts'
 
 const ACTION_LABELS: Record<ClockKind, string> = {
@@ -23,6 +23,22 @@ const DONE_MESSAGES: Record<ClockKind, string> = {
 const IDLE_RESET_MS = 30_000
 const PIN_LENGTH = 4
 
+/** Lower case, no accents: "é" and "E" find the same people. */
+const plain = (text: string) =>
+  text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+
+/** True when every typed word starts one of the words of the person's name. */
+function matchesSearch(person: Person, search: string) {
+  const words = plain(`${person.firstName} ${person.lastName}`).split(/[\s-]+/)
+  return plain(search)
+    .split(/\s+/)
+    .filter(Boolean)
+    .every((typed) => words.some((word) => word.startsWith(typed)))
+}
+
 type Step =
   | { name: 'letters' }
   | { name: 'pin'; person: Person }
@@ -34,14 +50,15 @@ export function Kiosk() {
   const [needsSetup, setNeedsSetup] = useState(deviceToken.get() === null)
   const [step, setStep] = useState<Step>({ name: 'letters' })
   const [letters, setLetters] = useState('')
-  const [matches, setMatches] = useState<Person[]>([])
+  const [people, setPeople] = useState<Person[] | null>(null)
+  const [round, setRound] = useState(0)
   const [pin, setPin] = useState('')
   const [error, setError] = useState<string | null>(null)
 
   const reset = useCallback(() => {
     setStep({ name: 'letters' })
     setLetters('')
-    setMatches([])
+    setRound((n) => n + 1)
     setPin('')
     setError(null)
   }, [])
@@ -64,20 +81,23 @@ export function Kiosk() {
       .catch(handleError)
   }, [needsSetup, handleError])
 
-  // Search as soon as enough letters are typed.
+  // The site's names, fetched again after each clocking so that a new
+  // colleague appears without restarting the tablet.
   useEffect(() => {
-    if (letters.length < 2) {
-      setMatches([])
-      return
-    }
+    if (needsSetup) return
     let cancelled = false
-    api<Person[]>(`/kiosk/employees?prefix=${encodeURIComponent(letters)}`, { asDevice: true })
-      .then((people) => !cancelled && setMatches(people))
+    api<Person[]>('/kiosk/employees', { asDevice: true })
+      .then((list) => !cancelled && setPeople(list))
       .catch(handleError)
     return () => {
       cancelled = true
     }
-  }, [letters, handleError])
+  }, [needsSetup, round, handleError])
+
+  const matches = useMemo(
+    () => (people ?? []).filter((person) => matchesSearch(person, letters)),
+    [people, letters],
+  )
 
   // Never leave someone's name or PIN screen open on a shared tablet.
   useEffect(() => {
@@ -143,24 +163,41 @@ export function Kiosk() {
 
       {step.name === 'letters' && (
         <section className="stack">
-          <h1>Les 3 premières lettres de votre nom</h1>
-          <input
-            className="big"
-            autoFocus
-            autoCapitalize="characters"
-            autoComplete="off"
-            maxLength={3}
-            value={letters}
-            onChange={(e) => setLetters(e.target.value.toUpperCase())}
-          />
-          <div className="choices">
+          <h1>Qui êtes-vous ?</h1>
+          <div className="kiosk-search">
+            <input
+              type="search"
+              autoFocus
+              autoCapitalize="off"
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
+              enterKeyHint="search"
+              placeholder="Rechercher mon prénom ou mon nom"
+              aria-label="Rechercher mon nom"
+              value={letters}
+              onChange={(e) => setLetters(e.target.value)}
+            />
+            {letters && (
+              <button className="clear" aria-label="Effacer" onClick={() => setLetters('')}>
+                ×
+              </button>
+            )}
+          </div>
+          <div className="people">
             {matches.map((person) => (
               <button key={person.id} onClick={() => setStep({ name: 'pin', person })}>
-                {person.firstName} {person.lastName}
+                <strong>{person.firstName}</strong> {person.lastName}
               </button>
             ))}
           </div>
-          {letters.length >= 2 && matches.length === 0 && <p className="muted">Personne trouvée.</p>}
+          {people !== null && matches.length === 0 && (
+            <p className="muted center">
+              {people.length === 0
+                ? "Aucun salarié n'est rattaché à cet établissement."
+                : `Aucun nom ne commence par « ${letters} ».`}
+            </p>
+          )}
         </section>
       )}
 

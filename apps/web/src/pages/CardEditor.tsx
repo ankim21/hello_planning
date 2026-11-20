@@ -402,7 +402,15 @@ function tidyTime(text: string): string {
  * A 24-hour time field. The browser's own time picker follows the language of
  * the computer and may show AM / PM, so a plain text field is used instead.
  */
-export function TimeField({ value, onChange }: { value: string; onChange: (time: string) => void }) {
+export function TimeField({
+  value,
+  onChange,
+  disabled = false,
+}: {
+  value: string
+  onChange: (time: string) => void
+  disabled?: boolean
+}) {
   return (
     <input
       type="text"
@@ -410,6 +418,7 @@ export function TimeField({ value, onChange }: { value: string; onChange: (time:
       placeholder="HH:MM"
       maxLength={5}
       className={TIME.test(value) ? 'time' : 'time invalid'}
+      disabled={disabled}
       value={value}
       onChange={(event) => onChange(event.target.value)}
       onBlur={(event) => onChange(tidyTime(event.target.value))}

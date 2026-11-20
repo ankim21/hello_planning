@@ -57,6 +57,17 @@ const DAY = 86_400_000;
 const toDbDate = (date: string) => new Date(`${date}T00:00:00.000Z`);
 const fromDbDate = (date: Date) => date.toISOString().slice(0, 10);
 
+/**
+ * What to show under a name when there is no weekly counter: forfait jours,
+ * the contract type (an extra has no fixed hours), or null without a contract.
+ */
+function contractKind(
+  contract: { type: string; forfaitJours: boolean } | undefined,
+): string | null {
+  if (!contract) return null;
+  return contract.forfaitJours ? 'FORFAIT_JOURS' : contract.type;
+}
+
 @Injectable()
 export class PlanningService {
   constructor(
@@ -112,6 +123,7 @@ export class PlanningService {
             orderBy: { startDate: 'desc' },
             take: 1,
           },
+          assignments: { where: { siteId }, select: { planningOrder: true } },
         },
         orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
       }),
@@ -205,6 +217,12 @@ export class PlanningService {
           })),
       );
 
+    // The site's own order first (rows keep their place from week to week),
+    // then everyone else, alphabetically as fetched.
+    const place = (employee: (typeof employees)[number]) =>
+      employee.assignments[0]?.planningOrder ?? Number.MAX_SAFE_INTEGER;
+    employees.sort((a, b) => place(a) - place(b));
+
     const rows = employees.map((employee) => {
       const contract = employee.contracts[0];
       const own = shiftCards.filter((card) => card.employeeId === employee.id);
@@ -221,6 +239,7 @@ export class PlanningService {
           lastName: employee.lastName,
         },
         contractMinutes,
+        contractKind: contractKind(contract),
         plannedMinutes: planned,
         // Paid leave counts as hours: a day is worth a fifth of the contract.
         absenceMinutes: counted(ownAbsences, contractMinutes),
@@ -535,6 +554,7 @@ export class PlanningService {
       candidates.push({
         employee: { id: person.id, firstName: person.firstName, lastName: person.lastName },
         contractMinutes,
+        contractKind: contractKind(contract),
         plannedMinutes: planned,
         // Hours still to plan this week, before this shift.
         remainingMinutes: contractMinutes === null ? null : contractMinutes - planned,

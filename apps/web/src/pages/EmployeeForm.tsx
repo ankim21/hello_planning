@@ -14,6 +14,8 @@ const CONTRACT_LABELS = {
   CDD: 'CDD',
   EXTRA: 'Extra',
   APPRENTICE: 'Apprenti',
+  INTERN: 'Stage',
+  TEMPORARY: 'Temporaire',
 } as const
 
 /** The contract hours used in the company; another value can be typed. */

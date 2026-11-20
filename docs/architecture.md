@@ -157,8 +157,8 @@ events; the raw clock events are kept unchanged.
 ### 5.4 Access, approvals and alerts (as given)
 
 - Login: email (personal or baofamily.co) and password.
-- Tablet: the employee types the first three letters of their last name, picks
-  themselves, then enters their PIN. The tablet keeps working offline and
+- Tablet: the employee finds their name in the site's list (typing letters
+  narrows it), taps it, then enters their PIN. The tablet keeps working offline and
   synchronises when the connection returns.
 - Mobile: web app (PWA) with push notifications, plus notifications in the account.
 - Planning alerts: all warn only. Nothing blocks publication except an arrêt

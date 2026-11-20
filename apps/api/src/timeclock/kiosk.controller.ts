@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Post, UseGuards } from '@nestjs/common';
 import { z } from 'zod';
 import { PrismaService } from '../core/prisma.service.js';
 import {
@@ -10,10 +10,6 @@ import { TimeclockService } from './timeclock.service.js';
 
 const pin = z.string().regex(/^\d{4}$/);
 
-const rosterSchema = z.object({
-  // First letters of the last name. Two are accepted for very short names.
-  prefix: z.string().trim().min(2).max(20),
-});
 const identifySchema = z.object({ employeeId: z.uuid(), pin });
 const clockSchema = z.object({
   eventId: z.uuid(),
@@ -43,11 +39,8 @@ export class KioskController {
   }
 
   @Get('employees')
-  employees(
-    @CurrentDevice() device: CurrentDeviceInfo,
-    @Query({ schema: rosterSchema }) { prefix }: z.infer<typeof rosterSchema>,
-  ) {
-    return this.timeclock.roster(device.siteId, prefix);
+  employees(@CurrentDevice() device: CurrentDeviceInfo) {
+    return this.timeclock.roster(device.siteId);
   }
 
   @Post('identify')

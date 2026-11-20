@@ -72,6 +72,7 @@ model Post {
 model Employee {
   id          String           @id @default(uuid())
   payfitId    String?          @unique // filled once the PayFit sync exists
+  skelloId    String?          @unique // set by the Skello import, to run it again safely
   firstName   String
   lastName    String
   phone       String? // shown to colleagues only as the contact of a service
@@ -93,6 +94,8 @@ enum ContractType {
   CDD
   EXTRA
   APPRENTICE
+  INTERN // "Stage" in Skello
+  TEMPORARY // "Temporaire" in Skello: agency staff
 }
 
 model Contract {
@@ -114,6 +117,8 @@ model SiteAssignment {
   siteId     String
   site       Site     @relation(fields: [siteId], references: [id])
   isPrimary  Boolean  @default(false)
+  // Row of the person in this site's planning; null = after the others.
+  planningOrder Int?
 
   @@id([employeeId, siteId])
 }
@@ -419,6 +424,8 @@ model TimeEntry {
   workedMinutes Int
   meals         Int       @default(0)
   corrected     Boolean   @default(false) // true when the manager changed the computed hours
+  absent        Boolean   @default(false) // "Abs.": did not come; nothing is paid
+  absenceId     String? // the absence this "Abs." put on the planning
   reason        String?
   validatedById String
   validatedAt   DateTime  @default(now())

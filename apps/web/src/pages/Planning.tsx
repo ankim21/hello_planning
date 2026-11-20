@@ -41,6 +41,7 @@ import {
   decimalHours,
   daysInMonth,
   firstOfMonth,
+  contractKindLabel,
   hours,
   isMonday,
   mondayOf,
@@ -621,7 +622,7 @@ function Board({ siteId }: { siteId: string }) {
                     </span>
                     <span className="muted">
                       {row.contractMinutes === null
-                        ? 'Forfait jours'
+                        ? contractKindLabel(row.contractKind)
                         : `${hours(row.contractMinutes)} / sem.`}
                     </span>
                     {row.alerts.length > 0 && (

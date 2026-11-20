@@ -98,6 +98,10 @@ export interface Validation {
   workedMinutes: number
   meals: number
   corrected: boolean
+  /** "Abs.": the person did not come; nothing is paid. */
+  absent: boolean
+  /** With `absent`: the type of the absence on the planning. */
+  absenceTypeId: string | null
   reason: string | null
 }
 /** One line of the Badgeuse: a planned shift, a clocking, or both. */
@@ -135,6 +139,8 @@ export interface HoursReport {
   date: string
   /** False for those who only have an overview (HR, operations team). */
   canValidate: boolean
+  /** The absence types offered when "Abs." is ticked. */
+  absenceTypes: { id: string; name: string }[]
   rows: BadgeRow[]
   absences: {
     id: string
@@ -150,6 +156,22 @@ export interface BadgeDay {
   date: string
   rows: number
   validated: number
+}
+/** The week at a glance, by day and by person (in the planning's order). */
+export interface BadgeWeek {
+  days: BadgeDay[]
+  people: { employee: Person; rows: number; validated: number }[]
+}
+/** One person's week at a site: the "Employés" view of the Badgeuse. */
+export interface EmployeeWeekReport {
+  canValidate: boolean
+  /** The absence types offered when "Abs." is ticked. */
+  absenceTypes: { id: string; name: string }[]
+  rows: BadgeRow[]
+  absences: (HoursReport['absences'][number] & { date: string })[]
+  lastSyncAt: string | null
+  workedMinutes: number
+  lateArrivals: number
 }
 
 // ───────────── Planning ─────────────
@@ -219,6 +241,8 @@ export interface PlanningAlert {
 export interface PlanningRow {
   employee: Person
   contractMinutes: number | null
+  /** FORFAIT_JOURS, a contract type, or null without a contract. */
+  contractKind: string | null
   plannedMinutes: number
   /** Hours added by absences that count (congé payé), a fifth of the contract a day. */
   absenceMinutes: number
@@ -398,7 +422,7 @@ export interface EmployeeRecord {
   sites: { id: string; name: string; isPrimary: boolean }[]
   postIds: string[]
   contract: {
-    type: 'CDI' | 'CDD' | 'EXTRA' | 'APPRENTICE'
+    type: 'CDI' | 'CDD' | 'EXTRA' | 'APPRENTICE' | 'INTERN' | 'TEMPORARY'
     weeklyHours: number | null
     forfaitJours: boolean
     startDate: string

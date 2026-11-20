@@ -19,6 +19,7 @@ const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expected YYYY-MM-DD');
 const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Expected HH:MM');
 
 const daySchema = z.object({ date });
+const personSchema = z.object({ date, employeeId: z.uuid() });
 
 const validateSchema = z.object({
   employeeId: z.uuid(),
@@ -30,6 +31,8 @@ const validateSchema = z.object({
   breakMinutes: z.number().int().min(0).max(240),
   meals: z.number().int().min(0).max(5).default(0),
   corrected: z.boolean().default(false),
+  absent: z.boolean().default(false),
+  absenceTypeId: z.uuid().optional(),
   reason: z.string().max(500).optional(),
 });
 
@@ -51,6 +54,7 @@ export class HoursController {
     this.access.assert(user, 'hours.read', siteId);
     return {
       ...(await this.timeclock.hours(siteId, day)),
+      absenceTypes: await this.timeclock.absenceTypes(),
       // HR and the operations team look without validating.
       canValidate: can(user.grants, 'hours.validate', siteId),
     };
@@ -65,6 +69,21 @@ export class HoursController {
   ) {
     this.access.assert(user, 'hours.read', siteId);
     return this.timeclock.week(siteId, monday);
+  }
+
+  /** One person's week: the "Employés" view of the Badgeuse. */
+  @Get('hours/employee')
+  async employeeWeek(
+    @CurrentUser() user: SessionUser,
+    @Param('siteId') siteId: string,
+    @Query({ schema: personSchema }) query: z.infer<typeof personSchema>,
+  ) {
+    this.access.assert(user, 'hours.read', siteId);
+    return {
+      ...(await this.timeclock.employeeWeek(siteId, query.date, query.employeeId)),
+      absenceTypes: await this.timeclock.absenceTypes(),
+      canValidate: can(user.grants, 'hours.validate', siteId),
+    };
   }
 
   @Post('time-entries')

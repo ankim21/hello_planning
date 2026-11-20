@@ -31,15 +31,6 @@ import { PlanningService } from '../planning/planning.service.js';
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
 
-/** "Démo-Test" and "demotest" must match: accents, case and symbols are ignored. */
-function normalise(text: string): string {
-  return text
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z]/g, '');
-}
-
 /** Clocked in, not out yet, and recently enough to still be at work. */
 function stillWorking(pair: ClockPair, now: Date): boolean {
   return (
@@ -73,6 +64,10 @@ export interface ValidateInput {
   breakMinutes: number;
   meals: number;
   corrected: boolean;
+  /** "Abs.": the person did not come; nothing is paid. */
+  absent?: boolean;
+  /** With `absent`: the type of the absence put on the planning. */
+  absenceTypeId?: string;
   reason?: string;
 }
 
@@ -94,10 +89,13 @@ export class TimeclockService {
 
   // ───────────── Tablet ─────────────
 
-  /** Employees of the site whose last name starts with the typed letters. */
-  async roster(siteId: string, prefix: string) {
+  /**
+   * Everyone who clocks at this site, for the tablet's name list. The tablet
+   * filters it as letters are typed, so the search is instant.
+   */
+  async roster(siteId: string) {
     const today = new Date();
-    const employees = await this.prisma.employee.findMany({
+    return this.prisma.employee.findMany({
       where: {
         isActive: true,
         assignments: { some: { siteId } },
@@ -110,12 +108,8 @@ export class TimeclockService {
         },
       },
       select: { id: true, firstName: true, lastName: true },
-      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
+      orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }],
     });
-    const wanted = normalise(prefix);
-    return employees.filter((employee) =>
-      normalise(employee.lastName).startsWith(wanted),
-    );
   }
 
   /** Checks the PIN and says what the employee can do now. */
@@ -231,10 +225,29 @@ export class TimeclockService {
     const employeeIds = [
       ...new Set([...events, ...shifts].map((row) => row.employeeId)),
     ];
-    const employees = await this.prisma.employee.findMany({
+    const found = await this.prisma.employee.findMany({
       where: { id: { in: employeeIds } },
-      select: { id: true, firstName: true, lastName: true },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        assignments: { where: { siteId }, select: { planningOrder: true } },
+      },
+      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
     });
+    // Same order as the site's planning.
+    const place = new Map(
+      found.map((e) => [e.id, e.assignments[0]?.planningOrder ?? Number.MAX_SAFE_INTEGER]),
+    );
+    found.sort((a, b) => place.get(a.id)! - place.get(b.id)!);
+    const employees = found.map(({ id, firstName, lastName }) => ({ id, firstName, lastName }));
+
+    // The type of each absence recorded from this screen ("Abs.").
+    const recorded = await this.prisma.absence.findMany({
+      where: { id: { in: validations.flatMap((v) => (v.absenceId ? [v.absenceId] : [])) } },
+      select: { id: true, absenceTypeId: true },
+    });
+    const absenceTypeOf = new Map(recorded.map((a) => [a.id, a.absenceTypeId]));
 
     const clock = (at: Date | null) => (at ? localTime(at, zone) : null);
     const inDay = (at: Date) => at >= from && at < to;
@@ -343,6 +356,8 @@ export class TimeclockService {
                 workedMinutes: validation.workedMinutes,
                 meals: validation.meals,
                 corrected: validation.corrected,
+                absent: validation.absent,
+                absenceTypeId: absenceTypeOf.get(validation.absenceId ?? '') ?? null,
                 reason: validation.reason,
               }
             : null,
@@ -354,7 +369,11 @@ export class TimeclockService {
       }
       for (const pair of unplanned) rows.push(row(null, pair));
     }
-    rows.sort((a, b) => a.sortAt - b.sortAt);
+    // People in the planning's order; each person's shifts by start time.
+    const rank = new Map(employees.map((employee, index) => [employee.id, index]));
+    rows.sort(
+      (a, b) => rank.get(a.employee.id)! - rank.get(b.employee.id)! || a.sortAt - b.sortAt,
+    );
 
     // Absences planned on that day, for the people of this site.
     const absences = await this.prisma.absence.findMany({
@@ -386,9 +405,25 @@ export class TimeclockService {
     };
   }
 
-  /** For the week's list of days: how many rows each day has, and how many are validated. */
+  /** The absence types offered when "Abs." is ticked. */
+  absenceTypes() {
+    return this.prisma.absenceType.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  /**
+   * The week at a glance: for each day and for each person, how many rows
+   * there are and how many are validated. People are in the planning's order.
+   */
   async week(siteId: string, monday: string) {
     const days = [];
+    const people = new Map<
+      string,
+      { employee: { id: string; firstName: string; lastName: string }; rows: number; validated: number }
+    >();
     for (let i = 0; i < 7; i++) {
       const date = addDays(monday, i);
       const { rows } = await this.hours(siteId, date);
@@ -397,8 +432,54 @@ export class TimeclockService {
         rows: rows.length,
         validated: rows.filter((row) => row.validation).length,
       });
+      for (const row of rows) {
+        const person = people.get(row.employee.id) ?? { employee: row.employee, rows: 0, validated: 0 };
+        person.rows += 1;
+        if (row.validation) person.validated += 1;
+        people.set(row.employee.id, person);
+      }
     }
-    return days;
+    const order = await this.prisma.siteAssignment.findMany({
+      where: { siteId, employeeId: { in: [...people.keys()] } },
+      select: { employeeId: true, planningOrder: true },
+    });
+    const place = new Map(order.map((a) => [a.employeeId, a.planningOrder ?? Number.MAX_SAFE_INTEGER]));
+    const byName = (a: { employee: { lastName: string } }, b: { employee: { lastName: string } }) =>
+      a.employee.lastName.localeCompare(b.employee.lastName, 'fr');
+    return {
+      days,
+      people: [...people.values()].sort(
+        (a, b) =>
+          (place.get(a.employee.id) ?? Number.MAX_SAFE_INTEGER) -
+            (place.get(b.employee.id) ?? Number.MAX_SAFE_INTEGER) || byName(a, b),
+      ),
+    };
+  }
+
+  /** One person's week at a site: their rows and planned absences, day by day. */
+  async employeeWeek(siteId: string, monday: string, employeeId: string) {
+    const rows = [];
+    const absences = [];
+    let lastSyncAt: Date | null = null;
+    for (let i = 0; i < 7; i++) {
+      const date = addDays(monday, i);
+      const day = await this.hours(siteId, date);
+      lastSyncAt = day.lastSyncAt;
+      rows.push(...day.rows.filter((row) => row.employee.id === employeeId));
+      absences.push(
+        ...day.absences
+          .filter((absence) => absence.employee.id === employeeId)
+          .map((absence) => ({ ...absence, date })),
+      );
+    }
+    return {
+      rows,
+      absences,
+      lastSyncAt,
+      // The summary boxes: hours validated so far, and late arrivals.
+      workedMinutes: rows.reduce((sum, row) => sum + (row.validation?.workedMinutes ?? 0), 0),
+      lateArrivals: rows.filter((row) => row.computed?.flags.includes('LATE_ARRIVAL')).length,
+    };
   }
 
   /**
@@ -435,6 +516,14 @@ export class TimeclockService {
       input.end,
       site.timezone,
     );
+    if (input.absent) {
+      const type =
+        input.absenceTypeId &&
+        (await this.prisma.absenceType.findFirst({
+          where: { id: input.absenceTypeId, isActive: true },
+        }));
+      if (!type) throw new BadRequestException("Choisissez le type d'absence");
+    }
     const data = {
       siteId,
       employeeId: input.employeeId,
@@ -444,8 +533,10 @@ export class TimeclockService {
       startsAt,
       endsAt,
       breakMinutes: input.breakMinutes,
-      workedMinutes: plannedMinutes(startsAt, endsAt, input.breakMinutes),
-      meals: input.meals,
+      // Absent: the times are those of the absence, nothing is paid.
+      workedMinutes: input.absent ? 0 : plannedMinutes(startsAt, endsAt, input.breakMinutes),
+      meals: input.absent ? 0 : input.meals,
+      absent: input.absent ?? false,
       corrected: input.corrected || !input.clockInAt,
       reason: input.reason?.trim() || null,
       validatedById: user.id,
@@ -472,9 +563,32 @@ export class TimeclockService {
             },
           })
         : null;
+    // "Abs." puts an absence on the planning, over the hours given; a
+    // previous one from the same line is replaced.
+    if (before?.absenceId) {
+      await this.prisma.absence.deleteMany({ where: { id: before.absenceId } });
+    }
+    const absence = input.absent
+      ? await this.prisma.absence.create({
+          data: {
+            employeeId: input.employeeId,
+            absenceTypeId: input.absenceTypeId!,
+            startDate: toDbDate(input.date),
+            endDate: toDbDate(input.date),
+            dayPart: 'CUSTOM',
+            startTime: input.start,
+            endTime: input.end,
+            note: input.reason?.trim() || null,
+            createdById: user.id,
+          },
+        })
+      : null;
     const entry = before
-      ? await this.prisma.timeEntry.update({ where: { id: before.id }, data })
-      : await this.prisma.timeEntry.create({ data });
+      ? await this.prisma.timeEntry.update({
+          where: { id: before.id },
+          data: { ...data, absenceId: absence?.id ?? null },
+        })
+      : await this.prisma.timeEntry.create({ data: { ...data, absenceId: absence?.id ?? null } });
 
     // Who changed what, from what to what, and why.
     await this.audit.record({
@@ -495,6 +609,7 @@ export class TimeclockService {
           breakMinutes: input.breakMinutes,
           meals: input.meals,
           corrected: data.corrected,
+          absent: data.absent,
           reason: data.reason,
         },
       },
@@ -509,6 +624,10 @@ export class TimeclockService {
     const date = entry.date.toISOString().slice(0, 10);
     await this.planning.assertRangeOpen(siteId, date, date);
     await this.prisma.timeEntry.delete({ where: { id } });
+    // The absence that this line put on the planning goes with it.
+    if (entry.absenceId) {
+      await this.prisma.absence.deleteMany({ where: { id: entry.absenceId } });
+    }
     await this.audit.record({
       actorUserId: user.id,
       action: 'timeEntry.unvalidate',

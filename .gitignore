@@ -3,3 +3,6 @@ dist/
 .env
 *.tsbuildinfo
 apps/api/src/generated/
+
+# Real staff data taken from Skello: never committed.
+data/skello-import/
