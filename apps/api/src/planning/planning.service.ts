@@ -52,6 +52,12 @@ export interface AbsenceInput {
   note?: string;
 }
 
+/** Colours given in turn to the posts a restaurant creates. */
+const POST_COLORS = [
+  '#db2777', '#2563eb', '#7c3aed', '#0891b2', '#dc2626',
+  '#ea580c', '#ca8a04', '#65a30d', '#0d9488', '#4f46e5',
+];
+
 /** Dates are stored without a time; this is how they travel to the database. */
 const DAY = 86_400_000;
 const toDbDate = (date: string) => new Date(`${date}T00:00:00.000Z`);
@@ -135,10 +141,7 @@ export class PlanningService {
       this.prisma.dayLock.findMany({
         where: { siteId, date: { gte: toDbDate(monday), lte: toDbDate(last) } },
       }),
-      this.prisma.post.findMany({
-        where: { isActive: true },
-        orderBy: [{ department: 'asc' }, { name: 'asc' }],
-      }),
+      this.sitePosts(siteId),
       this.prisma.absenceType.findMany({
         where: { isActive: true },
         orderBy: { name: 'asc' },
@@ -241,7 +244,8 @@ export class PlanningService {
         contractMinutes,
         contractKind: contractKind(contract),
         plannedMinutes: planned,
-        // Paid leave counts as hours: a day is worth a fifth of the contract.
+        // Paid leave and récupération JF count as hours: a day is worth a
+        // fifth of the contract.
         absenceMinutes: counted(ownAbsences, contractMinutes),
         // The contract is weekly, so the difference only makes sense for a week.
         differenceMinutes:
@@ -329,6 +333,150 @@ export class PlanningService {
       posts,
       absenceTypes: absenceTypes.map(({ id, name, category }) => ({ id, name, category })),
     };
+  }
+
+  // ───────────── Order of the rows ─────────────
+
+  /**
+   * Stores the order of the employee rows of a site, as the planner dragged
+   * them. The order is the site's: everyone sees it, and the Badgeuse follows it.
+   */
+  async setPlanningOrder(user: SessionUser, siteId: string, employeeIds: string[]) {
+    await this.siteOrThrow(siteId);
+    this.access.assert(user, 'shift.write', siteId);
+    const unique = [...new Set(employeeIds)];
+    await this.prisma.$transaction(
+      unique.map((employeeId, index) =>
+        this.prisma.siteAssignment.updateMany({
+          where: { siteId, employeeId },
+          data: { planningOrder: index + 1 },
+        }),
+      ),
+    );
+    await this.audit.record({
+      actorUserId: user.id,
+      action: 'planning.order',
+      entity: 'Site',
+      entityId: siteId,
+      data: { rows: unique.length },
+    });
+    return { rows: unique.length };
+  }
+
+  // ───────────── Posts of a site ─────────────
+
+  /**
+   * The posts a site works with: its own list, or every active post as long
+   * as it has not chosen any.
+   */
+  async sitePosts(siteId: string) {
+    const orderBy = [{ department: 'asc' as const }, { name: 'asc' as const }];
+    const own = await this.prisma.post.findMany({
+      where: { isActive: true, sites: { some: { siteId } } },
+      orderBy,
+    });
+    if (own.length > 0) return own;
+    return this.prisma.post.findMany({ where: { isActive: true }, orderBy });
+  }
+
+  /** The site's posts, and the other existing posts it could take. */
+  async postChoices(siteId: string) {
+    const posts = await this.sitePosts(siteId);
+    const others = await this.prisma.post.findMany({
+      where: { isActive: true, id: { notIn: posts.map((post) => post.id) } },
+      orderBy: [{ department: 'asc' }, { name: 'asc' }],
+    });
+    return { posts, others };
+  }
+
+  /**
+   * Adds a post to the site's list: an existing one by its id, or a new one
+   * by its name. A name that already exists is the same post, so "Service"
+   * created by two restaurants stays one post.
+   */
+  async addSitePost(
+    user: SessionUser,
+    siteId: string,
+    input: { postId?: string; name?: string; department?: Department },
+  ) {
+    await this.siteOrThrow(siteId);
+    this.access.assert(user, 'needs.write', siteId);
+    const current = await this.sitePosts(siteId);
+
+    let post;
+    if (input.postId) {
+      post = await this.prisma.post.findFirst({ where: { id: input.postId, isActive: true } });
+      if (!post) throw new BadRequestException('Poste inconnu');
+    } else {
+      const name = input.name?.trim().replace(/\s+/g, ' ');
+      if (!name || !input.department) {
+        throw new BadRequestException('Donnez un nom au poste');
+      }
+      const existing = await this.prisma.post.findFirst({
+        where: { name: { equals: name, mode: 'insensitive' } },
+      });
+      if (existing && existing.department !== input.department) {
+        throw new ConflictException(
+          `Le poste « ${existing.name} » existe déjà en ${existing.department === 'KITCHEN' ? 'cuisine' : 'salle'}`,
+        );
+      }
+      if (existing) {
+        post = existing.isActive
+          ? existing
+          : await this.prisma.post.update({ where: { id: existing.id }, data: { isActive: true } });
+      } else {
+        // A colour the site does not use yet, as far as there is one left.
+        const used = new Set(current.map((other) => other.color));
+        const color = POST_COLORS.find((candidate) => !used.has(candidate)) ?? POST_COLORS[0];
+        post = await this.prisma.post.create({
+          data: { name, department: input.department, color },
+        });
+      }
+    }
+
+    // The first change freezes the list: from "every post" to the site's own.
+    const ids = new Set([...current.map((other) => other.id), post.id]);
+    await this.prisma.sitePost.createMany({
+      data: [...ids].map((postId) => ({ siteId, postId })),
+      skipDuplicates: true,
+    });
+    await this.audit.record({
+      actorUserId: user.id,
+      action: 'sitePost.add',
+      entity: 'Site',
+      entityId: siteId,
+      data: { postId: post.id, name: post.name },
+    });
+    return post;
+  }
+
+  /**
+   * Takes a post off the site's list, with the needs set on it. Shifts
+   * already planned on it stay as they are.
+   */
+  async removeSitePost(user: SessionUser, siteId: string, postId: string) {
+    await this.siteOrThrow(siteId);
+    this.access.assert(user, 'needs.write', siteId);
+    const current = await this.sitePosts(siteId);
+    const post = current.find((other) => other.id === postId);
+    if (!post) throw new NotFoundException();
+    const kept = current.filter((other) => other.id !== postId);
+    if (kept.length === 0) throw new BadRequestException('Gardez au moins un poste');
+    await this.prisma.$transaction([
+      this.prisma.sitePost.deleteMany({ where: { siteId } }),
+      this.prisma.sitePost.createMany({
+        data: kept.map((other) => ({ siteId, postId: other.id })),
+      }),
+      this.prisma.staffingNeed.deleteMany({ where: { siteId, postId } }),
+    ]);
+    await this.audit.record({
+      actorUserId: user.id,
+      action: 'sitePost.remove',
+      entity: 'Site',
+      entityId: siteId,
+      data: { postId, name: post.name },
+    });
+    return { ok: true };
   }
 
   // ───────────── Staffing needs ─────────────
@@ -587,6 +735,8 @@ export class PlanningService {
       where: { siteId, startsAt: { gte: new Date(Date.now() - 60 * DAY) } },
       include: { post: true },
     });
+    // Only on the posts the site still uses.
+    const ownPosts = new Set((await this.sitePosts(siteId)).map((post) => post.id));
     const groups = new Map<
       string,
       {
@@ -602,7 +752,7 @@ export class PlanningService {
       }
     >();
     for (const shift of recent) {
-      if (!shift.post.isActive) continue;
+      if (!ownPosts.has(shift.postId)) continue;
       const start = localTime(shift.startsAt, site.timezone);
       const end = localTime(shift.endsAt, site.timezone);
       const key = [shift.postId, shift.service, start, end, shift.breakMinutes, shift.meals].join('|');
@@ -979,6 +1129,29 @@ export class PlanningService {
       data: { date, from: current?.status ?? 'OPEN', to: status },
     });
     return { date, lock: status };
+  }
+
+  /**
+   * Closes a day in blue once the Badgeuse has validated all of it. Not a
+   * planner's decision, so it needs no right; an open day only, a lock set by
+   * hand is left alone.
+   */
+  async lockValidatedDay(user: SessionUser, siteId: string, date: string) {
+    const key = { siteId_date: { siteId, date: toDbDate(date) } };
+    if (await this.prisma.dayLock.findUnique({ where: key })) return false;
+    await this.prisma.dayLock.upsert({
+      where: key,
+      update: {},
+      create: { siteId, date: toDbDate(date), status: 'LOCKED', setById: user.id },
+    });
+    await this.audit.record({
+      actorUserId: user.id,
+      action: 'day.lock',
+      entity: 'Site',
+      entityId: siteId,
+      data: { date, from: 'OPEN', to: 'LOCKED', by: 'badgeuse' },
+    });
+    return true;
   }
 
   private async assertDayOpen(siteId: string, date: string) {

@@ -169,11 +169,18 @@ Screen: Gestion → **Planning**, for the site chosen in the header menu.
 
 - Week navigation by arrows; "Aujourd'hui" returns to the current period.
 - The week number shown is the ISO week (Semaine 47).
-- Each employee row shows the contract's weekly hours, or "Forfait jours".
-- **Weekly counter** (week view): planned hours plus the days of congé payé,
-  and the difference with the contract in red when over, blue when under. A
-  day of congé payé is worth a fifth of the contract and at most five days
-  count per week. Other absences add nothing.
+- Each employee row shows the contract's weekly hours ("39h00"), or "Forfait jours".
+- **Order of the rows**: "⇅ Ordre", under the Employés / Postes tabs, puts a
+  handle and two arrows on each employee row. Drag a row onto another, or use
+  ▲ ▼ (the way on a touch screen). The order is saved at once, for the
+  restaurant: everyone sees it and the Badgeuse follows it. For those who may
+  change shifts.
+- **Today's column** is tinted and outlined from the header to the daily recap.
+- **A closed day** (blue or red lock, see section 7) is greyed, its cards faded.
+- **Weekly counter** (week view): planned hours plus the days of congé payé
+  and of récupération JF, and the difference with the contract in red when
+  over, blue when under. Such a day is worth a fifth of the contract and at
+  most five days count per week. Other absences add nothing.
 - **Absence cards** show what the day is worth: a fifth of the weekly contract
   (7h on 35 hours, 7.8h on 39), half of it for a half day, the hours given for
   custom hours. Nothing on forfait jours.
@@ -238,12 +245,29 @@ restaurant has planned most often in the last two months (at least twice).
 Clicking one fills the form; everything stays editable. Opened from a post's
 row, that post's usual shifts come first.
 
+The 🔥 button, next to "Besoins", opens the same shifts (up to twelve) as a
+strip above the planning. Drag one onto an employee's day to create the shift
+there, or click it and then click the days to put it on (Escape puts it
+down). On the Employés views only, never on a closed day, and only for the
+posts the restaurant uses.
+
 ### 5.3c The restaurant's needs
 
 "Besoins", on the week view, opens a grid for the restaurant: for each day of
 the week and each service (midi, soir), the number of people wanted on each
 post, plus a total for the salle and a total for the kitchen. The rule is the
 same every week. Set by the site director or the multi-site manager.
+
+**The restaurant's own posts.** The same window is where a restaurant chooses
+its posts, salle and kitchen apart: "×" on a line takes the post off, the
+field under each department adds one, either an existing post (suggested
+while typing) or a new name. Petit Bao Bastille can keep only Manager and
+Service in the salle. The change is immediate and is for that restaurant only:
+its list is what Besoins, the shift editor, the Postes view and the popular
+shifts offer. A restaurant that never changed its list uses every post.
+Taking a post off deletes the needs set on it; shifts already planned on it
+stay and keep their row in the Postes view. A new post with the name of an
+existing one is that same post.
 
 The planning then compares the rule with what is planned. A chip
 "⚠ n postes manquants" lists the gaps by day ("sam. 19 déc. · soir : Bar 0/1"),
@@ -314,7 +338,14 @@ header.
 
 A locked day (blue or red) refuses every change to its shifts, its absences
 and its validated hours, and refuses the approval of a leave request that
-covers it.
+covers it. Its column is greyed on the planning.
+
+**Closed by the Badgeuse.** When the last line of a day is validated in the
+Badgeuse (one by one or with "Valider la journée"), the day turns blue by
+itself, whoever validated. Never a day still to come, never a day without any
+line, and a lock already set is left alone. To correct a line afterwards, a
+site director reopens the day from its lock; removing a validation does not
+reopen it.
 
 ---
 
@@ -667,7 +698,7 @@ All under `/api`. "Session" means a logged-in account.
 | Accounts | `GET accounts`, `GET accounts/options`, `POST accounts`, `POST accounts/:id/reset-password`, `PUT accounts/:id/active`, `POST accounts/:id/grants`, `DELETE accounts/:id/grants/:grantId` |
 | Structure | `GET sites`, `GET posts`, `POST posts`, `GET sites/:siteId/employees`, `PUT employees/:id/pin` |
 | Tablets | `GET sites/:siteId/devices`, `POST sites/:siteId/devices`, `DELETE devices/:id` |
-| Planning | `GET sites/:siteId/planning`, `POST / PATCH / DELETE sites/:siteId/shifts`, `POST / PATCH / DELETE sites/:siteId/absences`, `PUT sites/:siteId/weeks/:monday/publication`, `PUT sites/:siteId/days/:date/lock` |
+| Planning | `GET sites/:siteId/planning`, `POST / PATCH / DELETE sites/:siteId/shifts`, `POST / PATCH / DELETE sites/:siteId/absences`, `PUT sites/:siteId/weeks/:monday/publication`, `PUT sites/:siteId/days/:date/lock`, `PUT sites/:siteId/planning-order`, `GET / POST sites/:siteId/posts`, `DELETE sites/:siteId/posts/:postId` |
 | Badgeuse | `GET sites/:siteId/hours`, `GET sites/:siteId/hours/week`, `POST sites/:siteId/time-entries`, `DELETE sites/:siteId/time-entries/:id` |
 | Leave | `GET leave/types`, `GET leave/mine`, `POST leave`, `POST leave/:id/cancel`, `GET leave/inbox`, `POST leave/:id/decision` |
 | Mon espace | `GET me`, `PUT me/phone`, `GET me/week`, `GET me/sites/:siteId/week` |
@@ -680,7 +711,8 @@ All under `/api`. "Session" means a logged-in account.
 | LegalEntity, Site | The 13 entities and their sites (11 restaurants, lab, office) |
 | Post | The posts, their department (kitchen / salle), colour, and whether the post runs the service |
 | Employee, Contract | People, phone, tablet PIN (hashed), contract type and weekly hours |
-| SiteAssignment, EmployeePost | Which restaurants a person works at (one is the main one) and which posts they hold |
+| SiteAssignment, EmployeePost | Which restaurants a person works at (one is the main one), their row in that restaurant's planning, and which posts they hold |
+| SitePost | The posts a restaurant uses; none = every post |
 | User, RoleGrant, PasswordToken | Logins, roles per site, one-time password links |
 | Device | Registered tablets |
 | Shift | Planned shifts: person, post, service, start, end, break, meals, note |

@@ -125,7 +125,13 @@ The lab is left out of brick 1.
 | PLN-25 | Whether an absence adds hours to the weekly counter depends on its type | Confirmed |
 | PLN-26 | A whole day of absence (repos, congé payé…) is worth a fifth of the weekly contract: 7h on 35 hours, 7.8h on 39; a half day is half of it. This is because everyone earns 2.08 days of paid leave a month whatever their hours | Confirmed 2026-11-17 |
 | PLN-50 | The value is shown on the absence card. A day of congé payé adds it to the weekly counter, with at most five days counted per week (a full week of leave = one week of contract) | Confirmed for congé payé; the five-day limit is Proposed |
-| PLN-53 | Which other absence types add their value to the counter (RTT, récupération, maternité…) | Open |
+| PLN-53 | Which other absence types add their value to the counter (RTT, récupération, maternité…) | Open, except récupération JF (PLN-60) |
+| PLN-60 | A day of récupération JF counts in the weekly counter like a day of congé payé | Confirmed 2026-11-20 |
+| PLN-61 | The planner sets the order of the employee rows by dragging them up or down; the order is the restaurant's | Confirmed 2026-11-20; that it is shared by everyone is Proposed |
+| PLN-62 | The employee row shows the contract hours without "/ sem." | Confirmed 2026-11-20 |
+| PLN-63 | Popular shifts open from a 🔥 button next to Besoins, as a strip to drag onto an employee's day | Confirmed 2026-11-20; click-then-click for touch screens is Proposed |
+| PLN-64 | Today's whole column is highlighted. A day that is past and validated in the Badgeuse closes with the blue lock, and its column is greyed | Confirmed 2026-11-20; "validated" = every line of the day, today included, is Proposed |
+| PLN-65 | Each restaurant chooses or creates its own posts for the salle and the kitchen (Petit Bao Bastille salle: Manager and Service); the list is used in Besoins, the shift editor and the Postes view | Confirmed 2026-11-20; set by whoever sets the needs is Proposed |
 | PLN-54 | Each restaurant sets its general needs for the week: for each day and service, how many people on each post, and how many in total in the salle and in the kitchen | Confirmed 2026-11-17 |
 | PLN-55 | The planning warns, day by day, about posts short of the needs, and again in the publication menu before publishing. It warns; it does not block | Confirmed |
 | PLN-56 | A person already on a post in a service (AM or PM) on a day cannot be given another post in that service, at any restaurant | Confirmed 2026-11-17 |

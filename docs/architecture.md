@@ -264,6 +264,10 @@ view, production deployment.
 Choices made while building, to confirm:
 - Site directors lock and unlock a day; only HR (or an administrator) sets or
   lifts the red payslip lock. A locked day refuses every change.
+- A day locks itself in blue once every line of it is validated in the
+  Badgeuse; reopening it is the site director's.
+- Posts are one shared catalogue; each restaurant picks its own list from it
+  (and may add to it), by the people who set the needs.
 - Colour is per post: light tint for AM, strong tint for PM.
 - The break set on a shift (20 by default) is what the hours calculation deducts.
 - Meals taken default to 1 per shift.

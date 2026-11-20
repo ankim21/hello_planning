@@ -42,6 +42,7 @@ model Site {
   leaveRequests LeaveRequest[]
   publications  Publication[]
   staffingNeeds StaffingNeed[]
+  posts         SitePost[]
 }
 
 enum Department {
@@ -63,6 +64,18 @@ model Post {
   employees  EmployeePost[]
   shifts     Shift[]
   staffingNeeds StaffingNeed[]
+  sites      SitePost[]
+}
+
+// The posts a site uses on its planning and in its staffing needs. A site
+// without any line here uses every active post.
+model SitePost {
+  siteId String
+  site   Site   @relation(fields: [siteId], references: [id])
+  postId String
+  post   Post   @relation(fields: [postId], references: [id])
+
+  @@id([siteId, postId])
 }
 
 // ───────────── People ─────────────
@@ -301,7 +314,7 @@ model AbsenceType {
   overtimeMajorees      Boolean? // null for categories without this setting
   blocksPlanning        Boolean         @default(false) // true for arrêt maladie
   // A day of it adds a fifth of the contract to the weekly counter.
-  // True for congé payé.
+  // True for congé payé and récupération JF.
   countsInCounter       Boolean         @default(false)
   absences              Absence[]
   leaveRequests         LeaveRequest[]

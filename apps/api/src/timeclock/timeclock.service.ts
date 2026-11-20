@@ -614,7 +614,19 @@ export class TimeclockService {
         },
       },
     });
-    return { id: entry.id };
+    return { id: entry.id, dayLocked: await this.closeDayWhenDone(user, siteId, input.date) };
+  }
+
+  /**
+   * Once every line of a day is validated, the day is closed in blue on the
+   * planning. Never a day still to come.
+   */
+  private async closeDayWhenDone(user: SessionUser, siteId: string, date: string) {
+    const site = await this.siteOrThrow(siteId);
+    if (date > localDate(new Date(), site.timezone)) return false;
+    const { rows } = await this.hours(siteId, date);
+    if (rows.length === 0 || rows.some((row) => !row.validation)) return false;
+    return this.planning.lockValidatedDay(user, siteId, date);
   }
 
   /** Removes a validation; the clocking goes back to "to validate". */

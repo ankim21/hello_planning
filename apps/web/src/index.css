@@ -530,3 +530,45 @@ table.needs { border-collapse: collapse; width: 100%; font-size: 0.86rem; }
 @media (max-width: 640px) {
   .account-panel { position: fixed; left: 12px; right: 12px; top: 60px; width: auto; }
 }
+
+/* Today's column stands out from top to bottom. */
+.planning thead th.today { background: color-mix(in srgb, var(--accent) 16%, var(--surface)); box-shadow: inset 0 3px 0 var(--accent); }
+.planning tbody td.today { background: color-mix(in srgb, var(--accent) 7%, var(--surface)); }
+.planning tfoot td.today { background: color-mix(in srgb, var(--accent) 18%, var(--surface)); }
+.planning .today { border-left: 2px solid var(--accent); border-right: 2px solid var(--accent); }
+.planning tfoot td.today { border-bottom: 2px solid var(--accent); }
+
+/* A closed day (validated in the Badgeuse, or locked by hand) is greyed. */
+.planning thead th.closed, .planning tbody td.closed { background: color-mix(in srgb, var(--muted) 13%, var(--surface)); }
+.planning thead th.closed { color: var(--muted); }
+.planning td.closed .card { opacity: 0.55; filter: saturate(0.6); }
+.planning td.closed .add { display: none; }
+
+/* Popular shifts: a strip above the planning to drag from. */
+button.fire { padding: 4px 9px; font-size: 1rem; line-height: 1.2; }
+button.fire.active { border-color: #f97316; background: color-mix(in srgb, #f97316 16%, var(--surface)); }
+.popular-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 8px 12px; margin-bottom: 10px; }
+.popular-strip .template { cursor: grab; }
+.popular-strip .template.held { outline: 2px solid var(--accent); outline-offset: 1px; }
+.popular-strip .hint { flex-basis: 100%; font-size: 0.8rem; }
+.planning td.takes-template { cursor: copy; }
+.planning td.template-over, .planning td.takes-template:hover { box-shadow: inset 0 0 0 2px var(--accent); }
+
+/* Changing the order of the employee rows. */
+.order-toggle { float: right; padding: 1px 7px; font-size: 0.74rem; font-weight: 500; }
+.order-toggle.active { border-color: var(--accent); color: var(--accent); }
+.planning th.employee.ordering { padding-left: 46px; position: relative; }
+.order-tools { position: absolute; left: 3px; top: 3px; display: flex; align-items: center; gap: 1px; }
+.order-tools .grip { cursor: grab; font-size: 1rem; line-height: 1; padding: 2px 1px; color: var(--muted); }
+.order-tools button { border: none; background: none; padding: 1px 2px; font-size: 0.62rem; line-height: 1; color: var(--muted); }
+.order-tools button:disabled { opacity: 0.25; }
+.planning tr.moving { opacity: 0.4; }
+.planning tr.row-over > * { box-shadow: inset 0 3px 0 var(--accent); }
+@media (hover: none) { .order-tools button { font-size: 0.9rem; padding: 4px 5px; } .planning th.employee.ordering { padding-left: 74px; } }
+
+/* Besoins: the restaurant's own posts. */
+.needs .remove-post { float: right; border: none; background: none; padding: 0 4px; color: var(--muted); font-size: 1rem; line-height: 1; }
+.needs .remove-post:hover:not(:disabled) { color: #dc2626; }
+.needs tr.add-post th { text-align: left; padding: 6px 8px 14px; font-weight: 400; }
+.needs tr.add-post form { display: flex; gap: 6px; }
+.needs tr.add-post input { width: 230px; text-align: left; padding: 4px 8px; border-color: var(--line); background: var(--surface); }

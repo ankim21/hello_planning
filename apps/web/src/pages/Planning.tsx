@@ -108,6 +108,14 @@ function Board({ siteId }: { siteId: string }) {
   const [outside, setOutside] = useState(false)
   // A shift just deleted by dragging it out, which can still be put back.
   const [undo, setUndo] = useState<ShiftBody | null>(null)
+  // The strip of popular shifts, and the one picked up from it: dragged, or
+  // clicked and then placed by clicking a day (the way on a touch screen).
+  const [popularOpen, setPopularOpen] = useState(false)
+  const [template, setTemplate] = useState<PopularShift | null>(null)
+  // Reordering the employee rows: the row being dragged, and the row under it.
+  const [ordering, setOrdering] = useState(false)
+  const [movingRow, setMovingRow] = useState<string | null>(null)
+  const [overRow, setOverRow] = useState<string | null>(null)
 
   const month = span === 'month'
   const from = month ? firstOfMonth(anchor) : mondayOf(anchor)
@@ -281,9 +289,69 @@ function Board({ siteId }: { siteId: string }) {
     }
   }
 
+  /** A popular shift put on someone's day: a new shift with its hours and post. */
+  async function placeTemplate(source: PopularShift, employeeId: string, date: string) {
+    try {
+      await api(`/sites/${siteId}/shifts`, {
+        method: 'POST',
+        body: {
+          employeeId,
+          postId: source.postId,
+          service: source.service,
+          date,
+          start: source.start,
+          end: source.end,
+          breakMinutes: source.breakMinutes,
+          meals: source.meals,
+        },
+      })
+      load()
+      loadPopular()
+    } catch (caught) {
+      setError((caught as Error).message)
+    }
+  }
+
+  // Escape puts down the popular shift that was picked up.
+  useEffect(() => {
+    if (!template) return
+    const onKey = (event: KeyboardEvent) => event.key === 'Escape' && setTemplate(null)
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [template])
+
+  /**
+   * Moves an employee row to the place of another (or one step up or down)
+   * and stores the new order for the site. The rows move at once on screen.
+   */
+  async function moveRow(employeeId: string, to: number) {
+    if (!data) return
+    const rows = [...data.rows]
+    const from = rows.findIndex((row) => row.employee.id === employeeId)
+    if (from < 0 || to < 0 || to >= rows.length || from === to) return
+    const [moved] = rows.splice(from, 1)
+    rows.splice(to, 0, moved)
+    setData({ ...data, rows })
+    try {
+      await api(`/sites/${siteId}/planning-order`, {
+        method: 'PUT',
+        body: { employeeIds: rows.map((row) => row.employee.id) },
+      })
+    } catch (caught) {
+      setError((caught as Error).message)
+      load()
+    }
+  }
+
   if (!data) return <main className="wide">{error && <p className="error">{error}</p>}</main>
 
   const { rights } = data
+  const todayDate = today()
+  // Days closed by a lock: validated in the Badgeuse, or locked by hand.
+  const closed = new Set(data.days.filter((day) => day.lock !== 'OPEN').map((day) => day.date))
+  /** Today's column stands out; a closed day is greyed. */
+  const dayClass = (date: string) =>
+    [date === todayDate ? 'today' : '', closed.has(date) ? 'closed' : ''].join(' ')
   const allShifts = data.rows.flatMap((row) => row.shifts)
   const nameOf = (employeeId: string) => {
     const person = data.rows.find((row) => row.employee.id === employeeId)?.employee
@@ -375,6 +443,9 @@ function Board({ siteId }: { siteId: string }) {
     const key = `${target.employeeId ?? `${target.postId}${target.service}`}:${target.date}`
     const accepts = dragged !== null && !isOrigin(dragged, target)
     const canAdd = rights.editShifts || rights.editAbsences
+    // A popular shift can be put on a person's day, while that day is open.
+    const takesTemplate =
+      template !== null && target.employeeId !== undefined && !closed.has(target.date)
     const addTarget: EditorTarget = target.employeeId
       ? {
           kind: 'new',
@@ -403,12 +474,37 @@ function Board({ siteId }: { siteId: string }) {
     return (
       <td
         key={target.date}
-        className={[isMonday(target.date) ? 'week-start' : '', canAdd ? 'can-add' : ''].join(' ')}
-        onDragOver={() => {
-          if (accepts && hoverCell !== key) setHoverCell(key)
+        className={[
+          isMonday(target.date) ? 'week-start' : '',
+          canAdd ? 'can-add' : '',
+          dayClass(target.date),
+          takesTemplate ? 'takes-template' : '',
+          takesTemplate && hoverCell === key ? 'template-over' : '',
+        ].join(' ')}
+        onDragOver={(event) => {
+          if (takesTemplate) {
+            event.preventDefault() // allows the drop
+            event.dataTransfer.dropEffect = 'copy'
+            if (hoverCell !== key) setHoverCell(key)
+          } else if (accepts && hoverCell !== key) setHoverCell(key)
+        }}
+        onDrop={(event) => {
+          if (!takesTemplate) return
+          event.preventDefault()
+          const source = template
+          setTemplate(null)
+          setHoverCell(null)
+          placeTemplate(source, target.employeeId!, target.date)
         }}
         // Clicking the empty part of a day adds a shift there. On a touch
-        // screen, where nothing hovers, it is the way to add one.
+        // screen, where nothing hovers, it is the way to add one. With a
+        // popular shift picked up, the click puts it there instead (and it
+        // stays in hand, to place it on several days).
+        onClickCapture={(event) => {
+          if (!takesTemplate) return
+          event.stopPropagation() // not the card or the + under the pointer
+          placeTemplate(template, target.employeeId!, target.date)
+        }}
         onClick={(event) => {
           if (canAdd && event.target === event.currentTarget) setEditing(addTarget)
         }}
@@ -469,6 +565,20 @@ function Board({ siteId }: { siteId: string }) {
           />
         )}
         {!month && rights.needs && <button onClick={() => setNeedsOpen(true)}>Besoins</button>}
+        {rights.editShifts && (
+          <button
+            className={popularOpen ? 'fire active' : 'fire'}
+            title="Shifts populaires"
+            aria-label="Shifts populaires"
+            aria-expanded={popularOpen}
+            onClick={() => {
+              setPopularOpen(!popularOpen)
+              setTemplate(null)
+            }}
+          >
+            🔥
+          </button>
+        )}
 
         {!month && data.publication && (
           <Publication
@@ -491,6 +601,56 @@ function Board({ siteId }: { siteId: string }) {
           <span className="chip">Consultation seule</span>
         )}
       </div>
+
+      {popularOpen && rights.editShifts && (
+        <div className="popular-strip panel" aria-label="Shifts populaires">
+          <strong>🔥 Shifts populaires</strong>
+          {popular.length === 0 ? (
+            <span className="muted">
+              Aucun pour l'instant : un shift devient populaire dès qu'il est planifié deux fois.
+            </span>
+          ) : byPost ? (
+            <span className="muted">Passez sur l'onglet Employés pour les poser sur le planning.</span>
+          ) : (
+            <>
+              {popular.map((item) => {
+                const key = [item.postId, item.service, item.start, item.end, item.breakMinutes, item.meals].join('|')
+                const held = template === item
+                return (
+                  <button
+                    key={key}
+                    className={held ? 'template held' : 'template'}
+                    style={{ '--post': item.color } as CSSProperties}
+                    title={`Utilisé ${item.uses} fois · pause ${item.breakMinutes} min · ${item.meals} repas`}
+                    aria-pressed={held}
+                    draggable
+                    onDragStart={(event) => {
+                      event.dataTransfer.effectAllowed = 'copy'
+                      event.dataTransfer.setData('text/plain', key)
+                      setTemplate(item)
+                    }}
+                    onDragEnd={() => {
+                      setTemplate(null)
+                      setHoverCell(null)
+                    }}
+                    onClick={() => setTemplate(held ? null : item)}
+                  >
+                    <strong>
+                      {item.start} – {item.end}
+                    </strong>{' '}
+                    {item.postName} {item.service}
+                  </button>
+                )
+              })}
+              <span className="muted hint">
+                {template
+                  ? 'Cliquez sur les jours où le poser · Échap pour le reposer'
+                  : 'Glissez un shift sur le jour d\'un employé, ou cliquez-le puis cliquez le jour.'}
+              </span>
+            </>
+          )}
+        </div>
+      )}
 
       {error && <p className="error">{error}</p>}
 
@@ -520,14 +680,26 @@ function Board({ siteId }: { siteId: string }) {
                     </button>
                   </span>
                 )}
+                {rights.editShifts && !byPost && (
+                  <button
+                    className={ordering ? 'order-toggle active' : 'order-toggle'}
+                    title={
+                      ordering
+                        ? "Terminer : l'ordre est enregistré"
+                        : "Changer l'ordre des employés"
+                    }
+                    aria-label="Changer l'ordre des employés"
+                    aria-pressed={ordering}
+                    onClick={() => setOrdering(!ordering)}
+                  >
+                    {ordering ? '✓ Ordre' : '⇅ Ordre'}
+                  </button>
+                )}
               </th>
               {data.days.map((day) => (
                 <th
                   key={day.date}
-                  className={[
-                    day.date === today() ? 'today' : '',
-                    isMonday(day.date) ? 'week-start' : '',
-                  ].join(' ')}
+                  className={[dayClass(day.date), isMonday(day.date) ? 'week-start' : ''].join(' ')}
                 >
                   {month ? (
                     <>
@@ -614,16 +786,74 @@ function Board({ siteId }: { siteId: string }) {
             </tbody>
           ) : (
             <tbody>
-              {data.rows.map((row) => (
-                <tr key={row.employee.id}>
-                  <th className="employee">
+              {data.rows.map((row, index) => (
+                <tr
+                  key={row.employee.id}
+                  className={[
+                    movingRow === row.employee.id ? 'moving' : '',
+                    movingRow && movingRow !== row.employee.id && overRow === row.employee.id
+                      ? 'row-over'
+                      : '',
+                  ].join(' ')}
+                  // While a row is dragged, every other row is a place to drop it.
+                  onDragOver={(event) => {
+                    if (!movingRow) return
+                    event.preventDefault()
+                    event.dataTransfer.dropEffect = 'move'
+                    if (overRow !== row.employee.id) setOverRow(row.employee.id)
+                  }}
+                  onDrop={(event) => {
+                    if (!movingRow) return
+                    event.preventDefault()
+                    const moved = movingRow
+                    setMovingRow(null)
+                    setOverRow(null)
+                    moveRow(moved, index)
+                  }}
+                >
+                  <th className={ordering ? 'employee ordering' : 'employee'}>
+                    {ordering && (
+                      <span className="order-tools">
+                        <span
+                          className="grip"
+                          title="Glissez pour déplacer"
+                          aria-hidden="true"
+                          draggable
+                          onDragStart={(event) => {
+                            event.dataTransfer.effectAllowed = 'move'
+                            event.dataTransfer.setData('text/plain', row.employee.id)
+                            setMovingRow(row.employee.id)
+                          }}
+                          onDragEnd={() => {
+                            setMovingRow(null)
+                            setOverRow(null)
+                          }}
+                        >
+                          ⠿
+                        </span>
+                        <button
+                          aria-label={`Monter ${row.employee.firstName} ${row.employee.lastName}`}
+                          disabled={index === 0}
+                          onClick={() => moveRow(row.employee.id, index - 1)}
+                        >
+                          ▲
+                        </button>
+                        <button
+                          aria-label={`Descendre ${row.employee.firstName} ${row.employee.lastName}`}
+                          disabled={index === data.rows.length - 1}
+                          onClick={() => moveRow(row.employee.id, index + 1)}
+                        >
+                          ▼
+                        </button>
+                      </span>
+                    )}
                     <span className="who">
                       {row.employee.firstName} {row.employee.lastName}
                     </span>
                     <span className="muted">
                       {row.contractMinutes === null
                         ? contractKindLabel(row.contractKind)
-                        : `${hours(row.contractMinutes)} / sem.`}
+                        : hours(row.contractMinutes)}
                     </span>
                     {row.alerts.length > 0 && (
                       <AlertPop label={`⚠ ${row.alerts.length}`} name="Alertes de la semaine">
@@ -672,7 +902,7 @@ function Board({ siteId }: { siteId: string }) {
                     className="total"
                     title={
                       row.absenceMinutes > 0
-                        ? `${hours(row.plannedMinutes)} de shifts + ${hours(row.absenceMinutes)} de congé payé`
+                        ? `${hours(row.plannedMinutes)} de shifts + ${hours(row.absenceMinutes)} d'absences comptées (congé payé, récupération JF)`
                         : undefined
                     }
                   >
@@ -694,7 +924,10 @@ function Board({ siteId }: { siteId: string }) {
             <tr>
               <th>Heures planifiées</th>
               {data.days.map((day) => (
-                <td key={day.date} className={isMonday(day.date) ? 'week-start' : ''}>
+                <td
+                  key={day.date}
+                  className={[dayClass(day.date), isMonday(day.date) ? 'week-start' : ''].join(' ')}
+                >
                   {month ? (
                     hours(day.minutes)
                   ) : (
@@ -737,7 +970,20 @@ function Board({ siteId }: { siteId: string }) {
         <CardEditor
           siteId={siteId}
           target={editing}
-          posts={data.posts}
+          // A shift on a post taken off the site's list keeps it in the choice.
+          posts={
+            editing.kind === 'shift' && !data.posts.some((post) => post.id === editing.shift.postId)
+              ? [
+                  ...data.posts,
+                  {
+                    id: editing.shift.postId,
+                    name: editing.shift.postName,
+                    color: editing.shift.color,
+                    department: 'SALLE' as const,
+                  },
+                ]
+              : data.posts
+          }
           employees={data.rows.map((row) => row.employee)}
           popular={popular}
           absenceTypes={data.absenceTypes}
@@ -767,6 +1013,10 @@ function Board({ siteId }: { siteId: string }) {
           siteId={siteId}
           siteName={data.site.name}
           posts={data.posts}
+          onPostsChanged={() => {
+            load()
+            loadPopular()
+          }}
           onClose={() => setNeedsOpen(false)}
           onSaved={() => {
             setNeedsOpen(false)
@@ -1066,9 +1316,14 @@ function absencesOf(row: PlanningRow, date: string): AbsenceCard[] {
 
 /** One row per post and service: all the AM rows first, then the PM rows. */
 function postRows(data: PlanningWeek) {
-  return (['AM', 'PM'] as const).flatMap((service) =>
-    data.posts.map((post) => ({ post, service })),
-  )
+  // A post taken off the site's list keeps its row while shifts are on it.
+  const posts: { id: string; name: string; color: string }[] = [...data.posts]
+  for (const shift of data.rows.flatMap((row) => row.shifts)) {
+    if (!posts.some((post) => post.id === shift.postId)) {
+      posts.push({ id: shift.postId, name: shift.postName, color: shift.color })
+    }
+  }
+  return (['AM', 'PM'] as const).flatMap((service) => posts.map((post) => ({ post, service })))
 }
 
 /** Over the contract in red, under it in blue, nothing when exact. */

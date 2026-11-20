@@ -77,11 +77,7 @@ async function main() {
       create: { name, department, color },
     });
   }
-  // A day of paid leave counts as worked hours in the weekly counter.
-  await prisma.absenceType.updateMany({
-    where: { name: 'Congé payé' },
-    data: { countsInCounter: true },
-  });
+
   // The manager of a service is the person staff call at the last minute.
   await prisma.post.updateMany({
     where: { name: 'Manager' },
@@ -99,6 +95,13 @@ async function main() {
       create: type,
     });
   }
+
+  // A day of paid leave or of récupération JF counts as worked hours in the
+  // weekly counter. After the types are created, so it holds on a first run.
+  await prisma.absenceType.updateMany({
+    where: { name: { in: ['Congé payé', 'Récupération JF'] } },
+    data: { countsInCounter: true },
+  });
 
   const email = process.env.SEED_ADMIN_EMAIL?.toLowerCase();
   const password = process.env.SEED_ADMIN_PASSWORD;

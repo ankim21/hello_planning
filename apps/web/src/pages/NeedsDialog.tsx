@@ -5,8 +5,11 @@
  *
  * The same rule applies every week. The planning then warns, day by day,
  * about the posts that are missing.
+ *
+ * It is also where a restaurant chooses its own posts, in the salle and in
+ * the kitchen: the ones listed here are the ones its planning offers.
  */
-import { useEffect, useState } from 'react'
+import { Fragment, useCallback, useEffect, useState } from 'react'
 import { api, type Department, type PlanningWeek } from '../api.ts'
 
 const DAYS = ['Lun.', 'Mar.', 'Mer.', 'Jeu.', 'Ven.', 'Sam.', 'Dim.']
@@ -20,6 +23,12 @@ interface Need {
   count: number
 }
 
+type SitePost = PlanningWeek['posts'][number]
+const DEPARTMENTS: { department: Department; name: string }[] = [
+  { department: 'SALLE', name: 'Salle' },
+  { department: 'KITCHEN', name: 'Cuisine' },
+]
+
 /** A line of the grid: one post, or the total of a department. */
 type Line = { key: string; label: string; postId: string | null; department: Department | null }
 
@@ -29,18 +38,57 @@ export function NeedsDialog({
   siteId,
   siteName,
   posts,
+  onPostsChanged,
   onClose,
   onSaved,
 }: {
   siteId: string
   siteName: string
+  /** The site's own posts; the planning reloads them after a change here. */
   posts: PlanningWeek['posts']
+  onPostsChanged: () => void
   onClose: () => void
   onSaved: () => void
 }) {
   const [counts, setCounts] = useState<Record<string, number> | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  // Posts that exist in the company and are not on this site's list.
+  const [others, setOthers] = useState<SitePost[]>([])
+  // The name being typed for a post to add, per department.
+  const [adding, setAdding] = useState<Record<Department, string>>({ SALLE: '', KITCHEN: '' })
+
+  const loadOthers = useCallback(() => {
+    api<{ others: SitePost[] }>(`/sites/${siteId}/posts`)
+      .then((result) => setOthers(result.others))
+      .catch(() => setOthers([]))
+  }, [siteId])
+  // Again each time the site's list changes.
+  useEffect(loadOthers, [loadOthers, posts])
+
+  /** Adds a post to the site: an existing one by that name, or a new one. */
+  async function addPost(department: Department) {
+    const name = adding[department].trim()
+    if (!name) return
+    setError(null)
+    try {
+      await api(`/sites/${siteId}/posts`, { method: 'POST', body: { name, department } })
+      setAdding({ ...adding, [department]: '' })
+      onPostsChanged()
+    } catch (caught) {
+      setError((caught as Error).message)
+    }
+  }
+
+  async function removePost(post: SitePost) {
+    setError(null)
+    try {
+      await api(`/sites/${siteId}/posts/${post.id}`, { method: 'DELETE' })
+      onPostsChanged()
+    } catch (caught) {
+      setError((caught as Error).message)
+    }
+  }
 
   // The total of a department first, then its posts.
   const lines: Line[] = (['SALLE', 'KITCHEN'] as const).flatMap((department) => [
@@ -135,9 +183,30 @@ export function NeedsDialog({
                 </tr>
               </thead>
               <tbody>
-                {lines.map((line) => (
+                {DEPARTMENTS.map(({ department, name }) => (
+                  <Fragment key={department}>
+                {lines
+                  .filter(
+                    (line) =>
+                      line.department === department ||
+                      posts.some((post) => post.id === line.postId && post.department === department),
+                  )
+                  .map((line) => (
                   <tr key={line.key} className={line.postId ? '' : 'total-line'}>
-                    <th>{line.label}</th>
+                    <th>
+                      {line.label}
+                      {line.postId && (
+                        <button
+                          className="remove-post"
+                          title={`Retirer ${line.label} des postes de ${siteName}`}
+                          aria-label={`Retirer le poste ${line.label}`}
+                          disabled={posts.length <= 1}
+                          onClick={() => removePost(posts.find((post) => post.id === line.postId)!)}
+                        >
+                          ×
+                        </button>
+                      )}
+                    </th>
                     {DAYS.flatMap((day, weekday) =>
                       SERVICES.map((service) => {
                         const key = cellKey(line, weekday, service)
@@ -160,6 +229,38 @@ export function NeedsDialog({
                     )}
                   </tr>
                 ))}
+                    {/* The restaurant's own posts: pick an existing one or name a new one. */}
+                    <tr className="add-post">
+                      <th colSpan={15}>
+                        <form
+                          onSubmit={(event) => {
+                            event.preventDefault()
+                            addPost(department)
+                          }}
+                        >
+                          <input
+                            list={`posts-${department}`}
+                            placeholder={`Ajouter un poste en ${name.toLowerCase()}…`}
+                            aria-label={`Ajouter un poste en ${name.toLowerCase()}`}
+                            maxLength={40}
+                            value={adding[department]}
+                            onChange={(event) =>
+                              setAdding({ ...adding, [department]: event.target.value })
+                            }
+                          />
+                          <datalist id={`posts-${department}`}>
+                            {others
+                              .filter((post) => post.department === department)
+                              .map((post) => (
+                                <option key={post.id} value={post.name} />
+                              ))}
+                          </datalist>
+                          <button disabled={!adding[department].trim()}>Ajouter</button>
+                        </form>
+                      </th>
+                    </tr>
+                  </Fragment>
+                ))}
               </tbody>
             </table>
           )}
@@ -167,7 +268,10 @@ export function NeedsDialog({
         </div>
 
         <footer className="row dialog-body">
-          <span className="muted">Une case vide = pas de besoin.</span>
+          <span className="muted">
+            Une case vide = pas de besoin. Les postes ajoutés ou retirés le sont tout de suite, pour
+            le planning de ce restaurant seulement.
+          </span>
           <span>
             <button onClick={onClose}>Annuler</button>{' '}
             <button className="primary" disabled={busy || !counts} onClick={save}>

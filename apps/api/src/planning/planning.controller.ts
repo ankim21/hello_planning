@@ -73,6 +73,15 @@ const publicationSchema = z.object({
   published: z.boolean(),
 });
 const lockSchema = z.object({ status: z.enum(['OPEN', 'LOCKED', 'PAYROLL']) });
+const orderSchema = z.object({ employeeIds: z.array(z.uuid()).max(500) });
+// An existing post by its id, or a new one by its name.
+const sitePostSchema = z.union([
+  z.object({ postId: z.uuid() }),
+  z.object({
+    name: z.string().trim().min(1).max(40),
+    department: z.enum(['KITCHEN', 'SALLE']),
+  }),
+]);
 
 /** The weekly planning of a site: shifts, absences and day locks. */
 @Controller('sites/:siteId')
@@ -150,6 +159,41 @@ export class PlanningController {
     @Param('id') id: string,
   ) {
     return this.planning.deleteAbsence(user, siteId, id);
+  }
+
+  /** The order of the employee rows, as dragged by the planner. */
+  @Put('planning-order')
+  setPlanningOrder(
+    @CurrentUser() user: SessionUser,
+    @Param('siteId') siteId: string,
+    @Body({ schema: orderSchema }) { employeeIds }: z.infer<typeof orderSchema>,
+  ) {
+    return this.planning.setPlanningOrder(user, siteId, employeeIds);
+  }
+
+  /** The site's own posts, and the other posts it could take. */
+  @Get('posts')
+  posts(@CurrentUser() user: SessionUser, @Param('siteId') siteId: string) {
+    this.access.assert(user, 'shift.read', siteId);
+    return this.planning.postChoices(siteId);
+  }
+
+  @Post('posts')
+  addPost(
+    @CurrentUser() user: SessionUser,
+    @Param('siteId') siteId: string,
+    @Body({ schema: sitePostSchema }) dto: z.infer<typeof sitePostSchema>,
+  ) {
+    return this.planning.addSitePost(user, siteId, dto);
+  }
+
+  @Delete('posts/:postId')
+  removePost(
+    @CurrentUser() user: SessionUser,
+    @Param('siteId') siteId: string,
+    @Param('postId') postId: string,
+  ) {
+    return this.planning.removeSitePost(user, siteId, postId);
   }
 
   @Get('needs')

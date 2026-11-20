@@ -215,8 +215,8 @@ Each is in the spec with its ID. These are the ones easiest to get wrong.
   39h → 7.8h); a half day is half.
 - Everyone earns 2.08 days of paid leave per month whatever their hours
   (recorded as a constant, not used yet).
-- A day of congé payé adds its value to the weekly counter, at most five days
-  per week. No other absence type counts yet.
+- A day of congé payé or of récupération JF adds its value to the weekly
+  counter, at most five days per week. No other absence type counts yet.
 - An arrêt maladie is the only thing that blocks planning a person that day.
 
 **Planning**
@@ -228,6 +228,13 @@ Each is in the spec with its ID. These are the ones easiest to get wrong.
   validated for HCR), a shift on an absence day.
 - Staffing needs per restaurant, weekday and service; missing posts warn,
   including before publishing, and never block.
+- Each restaurant has its own list of posts (table SitePost; empty = every
+  post), managed in the Besoins window. Posts stay one shared catalogue with
+  unique names, so "Service" is the same post everywhere.
+- The order of the employee rows is the restaurant's (SiteAssignment
+  .planningOrder), set by dragging in "⇅ Ordre".
+- A day whose Badgeuse lines are all validated locks itself in blue
+  (`PlanningService.lockValidatedDay`); locked days are greyed on the planning.
 - Kitchen and salle are published separately per week. Employees see a shift
   only once its department is published. Head chef publishes the kitchen;
   site director either.
